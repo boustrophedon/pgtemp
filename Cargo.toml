@@ -1,0 +1,14 @@
+[package]
+name = "pgtemp"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+tempfile = "^3"
+libc = "^0.2"
+url = "^2.5"
+tokio = { version = "^1", features = ["rt"] }
+
+[dev-dependencies]
+# add extra features for dev dependencies
+tokio = { version = "^1", features = ["rt", "fs"] }
