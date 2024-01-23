@@ -7,21 +7,21 @@ test:
 
 # Run all tests with and without all features
 test-ci:
-	cargo test --target=$(TARGET_TRIPLE) --tests --examples --all-features
-	cargo test --target=$(TARGET_TRIPLE) --tests --examples --no-default-features
+	cargo test --tests --examples --all-features
+	cargo test --tests --examples --no-default-features
 
-# Run cargo fmt
-fmt:
-	cargo fmt
-
-# Run clippy and fmt --check
+# Run clippy
 lint:
 	cargo clippy --no-deps --all-targets --all-features -- -W clippy::pedantic \
 		-A clippy::let-unit-value \
 		-A clippy::wildcard-imports \
 		-A clippy::module-name-repetitions \
-		-A clippy::uninlined-format-args
-	cargo fmt --check
+		-A clippy::uninlined-format-args \
+		-A clippy::must-use-candidate \
+		-A clippy::doc-markdown \
+		-A clippy::missing-panics-doc \
+		-A clippy::new-without-default \
+		-A clippy::expect-fun-call # this one is particularly bad because I'm just calling format!()
 
 # Generate docs
 doc:

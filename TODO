@@ -1,0 +1,20 @@
+- async test macro that wraps the test like:
+let db = PgTempDB::new()
+test_fn(db)
+await db.async_shutdown()
+
+- .pgpass file instead of just writing password to file? only seems to be an issue for createdb and really at that point we could just execute with psql instead.
+
+- support all builder options in cli (--persist, custom config params)
+
+- cache initial files from initdb or otherwise optimize all setup stuff
+
+- pg extensions?
+
+- unix socket connections
+
+- postgres log stuff (you can set the relevant conf options via the builder though)
+
+- figure out how hard it would be to read the postgres wire protocol and change the database name to a random one so that you can have 1 cluster and each connection connects to a new database, even from the cli
+	- obviously this doesn't work if the client code wants to use multiple databases
+	- conflicts with --persist

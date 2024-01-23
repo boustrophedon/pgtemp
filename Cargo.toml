@@ -3,12 +3,22 @@ name = "pgtemp"
 version = "0.1.0"
 edition = "2021"
 
+[features]
+cli = ["dep:clap"]
+
 [dependencies]
 tempfile = "^3"
 libc = "^0.2"
 url = "^2.5"
-tokio = { version = "^1", features = ["rt"] }
+tokio = { version = "^1", features = ["full"] }
+clap = { version = "^4.4", features = ["derive"], optional = true }
 
 [dev-dependencies]
-# add extra features for dev dependencies
-tokio = { version = "^1", features = ["rt", "fs"] }
+sqlx = { version = "^0.7", features = [ "runtime-tokio", "postgres", "migrate" ] }
+# diesel = { version = "^2.1", features = ["postgres", ] } # for example
+
+[[bin]]
+name = "pgtemp"
+test = false
+bench = false
+required-features = ["cli"]
