@@ -1,5 +1,7 @@
 # pgtemp
 
+[![Coverage Status](https://coveralls.io/repos/github/boustrophedon/pgtemp/badge.svg?branch=master)](https://coveralls.io/github/boustrophedon/pgtemp?branch=master) [![CI Status](https://github.com/boustrophedon/pgtemp/actions/workflows/build-test.yaml/badge.svg)](https://github.com/boustrophedon/pgtemp/actions/workflows/build-test.yaml) [![crates.io](https://img.shields.io/crates/v/pgtemp)](https://crates.io/crates/pgtemp) [![docs.rs](https://img.shields.io/docsrs/pgtemp)](https://docs.rs/pgtemp/latest/pgtemp/)
+
 pgtemp is a Rust library and daemon that allows you to easily create temporary PostgreSQL databases (technically clusters) for testing.
 
 The pgtemp Rust library allows you to spawn a PostgreSQL server in a temporary directory and get back the host, port, username, and password.
