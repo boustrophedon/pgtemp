@@ -22,6 +22,8 @@ jobs:
     steps:
       - name: Install postgres
         run: sudo apt-get install postgresql postgresql-client
+      - name: Update path
+        run: find /usr/lib/postgresql/ -type d -name "bin" >> $GITHUB_PATH
       - name: Checkout
         uses: actions/checkout@v4
       - name: Run tests
@@ -40,6 +42,12 @@ jobs:
     name: Code Coverage
     runs-on: ubuntu-latest
     steps:
+      - name: Install postgres
+        run: sudo apt-get install postgresql postgresql-client
+      - name: Update path
+        run: find /usr/lib/postgresql/ -type d -name "bin" >> $GITHUB_PATH
+      - name: check path
+        run: echo $PATH
       - name: Checkout
         uses: actions/checkout@v4
       - name: Install Rust
