@@ -40,7 +40,6 @@ pub fn init_db(builder: &mut PgTempDBBuilder) -> TempDir {
 
     let user = builder.get_user();
     let password = builder.get_password();
-    let port = builder.get_port_or_set_random();
 
     // write out password file for initdb
     let pwfile = temp_dir.path().join("user_password.txt");
@@ -60,11 +59,16 @@ pub fn init_db(builder: &mut PgTempDBBuilder) -> TempDir {
     cmd.args(["-D", data_dir_str])
         .arg("-N") // no fsync, starts slightly faster
         .args(["--username", &user])
-        .args(["--pwfile", pwfile_str])
-        // set the unix socket directory to be in the data directory
-        .args(["-c", &format!("unix_socket_directories={}", data_dir_str)])
-        .args(["-c", &format!("port={port}")]);
+        .args(["--pwfile", pwfile_str]);
 
+    #[cfg(feature = "pg16")]
+    {
+        let port = builder.get_port_or_set_random();
+        cmd.args(["-c", &format!("unix_socket_directories={}", data_dir_str)])
+            .args(["-c", &format!("port={port}")]);
+    }
+
+    #[cfg(feature = "pg16")]
     for (key, val) in &builder.server_configs {
         cmd.args(["-c", &format!("{}={}", key, val)]);
     }
@@ -89,6 +93,8 @@ pub fn init_db(builder: &mut PgTempDBBuilder) -> TempDir {
 
 pub fn run_db(temp_dir: &TempDir, mut builder: PgTempDBBuilder) -> Child {
     let data_dir = temp_dir.path().join("pg_data_dir");
+    let data_dir_str = data_dir.to_str().unwrap();
+    let port = builder.get_port_or_set_random();
 
     // postgres will not run as root, so try to run as postgres if we are root
     let mut pgcmd: Command;
@@ -100,6 +106,8 @@ pub fn run_db(temp_dir: &TempDir, mut builder: PgTempDBBuilder) -> Child {
     };
 
     pgcmd
+        .args(["-c", &format!("unix_socket_directories={}", data_dir_str)])
+        .args(["-c", &format!("port={port}")])
         .arg("-F") // no fsync for faster setup and execution
         .args(["-D", data_dir.to_str().unwrap()]);
 

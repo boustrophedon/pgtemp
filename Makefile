@@ -5,9 +5,9 @@ build:
 test:
 	cargo test --tests --examples --all-features
 
-# Run all tests with and without all features
+# Run all tests with and without all features (excluding pg16 since github runners do not support it)
 test-ci:
-	cargo test --tests --examples --all-features
+	cargo test --tests --examples --features cli
 	cargo test --tests --examples --no-default-features
 
 # Run clippy
@@ -29,7 +29,7 @@ doc:
 
 # Compute test coverage for CI with llvm-cov
 coverage-ci:
-	cargo llvm-cov --tests --examples --all-targets --all-features --workspace --lcov --output-path lcov.info
+	cargo llvm-cov --tests --examples --all-targets --features cli --workspace --lcov --output-path lcov.info
 
 # Compute test coverage with HTML output
 coverage:

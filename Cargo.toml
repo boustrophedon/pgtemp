@@ -5,6 +5,7 @@ edition = "2021"
 
 [features]
 cli = ["dep:clap"]
+pg16 = [] # pg16 supports the initdb -c option
 
 [dependencies]
 tempfile = "^3"

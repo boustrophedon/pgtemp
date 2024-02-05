@@ -1,3 +1,7 @@
+// TODO: these are disabled in ci because ci doesn't have postgres16 (and presumably neither does
+// many existing deployments) but really they aren't needed since all the other tests basically
+// test these things anyway
+#![cfg(feature = "pg16")]
 use pgtemp::PgTempDB;
 
 #[test]

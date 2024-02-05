@@ -1,3 +1,4 @@
+#[cfg(feature = "pg16")]
 use std::collections::HashMap;
 use std::fmt;
 use std::fmt::Debug;
@@ -297,6 +298,7 @@ pub struct PgTempDBBuilder {
     pub dump_path: Option<PathBuf>,
     /// The path to load the database from (via `psql`) when the `PgTempDB` is started.
     pub load_path: Option<PathBuf>,
+    #[cfg(feature = "pg16")]
     /// Other server configuration data to be set in `postgresql.conf` via `initdb -c`
     pub server_configs: HashMap<String, String>,
 }
@@ -312,6 +314,7 @@ impl PgTempDBBuilder {
             persist_data_dir: false,
             dump_path: None,
             load_path: None,
+            #[cfg(feature = "pg16")]
             server_configs: HashMap::new(),
         }
     }
@@ -384,6 +387,7 @@ impl PgTempDBBuilder {
         self
     }
 
+    #[cfg(feature = "pg16")]
     /// Set an arbitrary PostgreSQL server configuration parameter that will be inserted into
     /// `postgresql.conf` by initdb.
     #[must_use]
