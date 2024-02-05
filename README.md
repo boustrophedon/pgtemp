@@ -4,11 +4,29 @@
 
 pgtemp is a Rust library and daemon that allows you to easily create temporary PostgreSQL databases (technically clusters) for testing.
 
-The pgtemp Rust library allows you to spawn a PostgreSQL server in a temporary directory and get back the host, port, username, and password.
+The pgtemp Rust library allows you to spawn a PostgreSQL server in a temporary directory and get back a full connection URI with the host, port, username, and password.
 
 The pgtemp binary allows you to even more simply make temporary connections: Run pgtemp and then use its connection URI when connecting to the database in your tests. **pgtemp will then spawn a new postgresql process for each connection it receives** and transparently proxy everything over that connection to the temporary database. Note that this means when you make multiple connections in a single test, changes made in one connection will not be visible in the other connections.
 
 pgtemp supports loading (and dumping, in the library) the database to/from [dumpfiles via `pg_dump`](https://www.postgresql.org/docs/current/backup-dump.html).
+
+# Requirements
+You must install both the postgresql client and server packages. On Debian/Ubuntu, they are `postgresql postgresql-client`, on Fedora they are `postgresql postgresql-server`, and on Arch Linux they are `postgresql postgresql-libs`. Note also that Debian/Ubuntu install the standard postgres binaries into their own directory, so you must add them to your path. For an Ubuntu GitHub Actions runner, it looks like:
+
+```
+steps:
+  - name: Install postgres
+    run: sudo apt-get install postgresql postgresql-client
+  - name: Update path
+    run: find /usr/lib/postgresql/ -type d -name "bin" >> $GITHUB_PATH
+```
+
+The `pg16` feature can be enabled when using postgresql 16 or above to allow for setting arbitrary `postgres.conf` settings during initdb setup.
+
+To install the CLI tool, you must install it with the --features cli or --all-features options
+```
+cargo install pgtemp --features cli
+```
 
 # Design
 
