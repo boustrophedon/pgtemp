@@ -123,6 +123,7 @@ impl PgTempDaemon {
             tokio::select! {
                 res = listener.accept() => {
                     if let Ok((client_conn, client_addr)) = res {
+                        client_conn.set_nodelay(true).expect("failed to set nodelay on client connection");
                         let db: Option<PgTempDB>;
                         let db_port: u16;
                         if self.single_mode {
@@ -137,6 +138,9 @@ impl PgTempDaemon {
                         let db_conn = TcpStream::connect(("127.0.0.1", db_port))
                             .await
                             .expect("failed to connect to postgres server");
+                        db_conn
+                            .set_nodelay(true)
+                            .expect("failed to set nodelay on db connection");
                         tokio::spawn(async move { proxy_connection(db, db_conn, client_conn, client_addr).await });
                         // preallocate a new db after one is used
                         if self.dbs.is_empty() && !self.single_mode {

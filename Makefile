@@ -1,3 +1,6 @@
+.EXPORT_ALL_VARIABLES:
+RUST_BACKTRACE=1
+
 build:
 	cargo build --all-features
 
@@ -7,8 +10,9 @@ test:
 
 # Run all tests with and without all features (excluding pg16 since github runners do not support it)
 test-ci:
-	cargo test --tests --examples --features cli
 	cargo test --tests --examples --no-default-features
+	cargo test --tests --examples --all-features
+	make -C examples/python-sqlalchemy test-ci
 
 # Run clippy
 lint:
@@ -21,7 +25,7 @@ lint:
 		-A clippy::doc-markdown \
 		-A clippy::missing-panics-doc \
 		-A clippy::new-without-default \
-		-A clippy::expect-fun-call # this one is particularly bad because I'm just calling format!()
+		-A clippy::expect-fun-call
 
 # Generate docs
 doc:
@@ -29,7 +33,7 @@ doc:
 
 # Compute test coverage for CI with llvm-cov
 coverage-ci:
-	cargo llvm-cov --tests --examples --all-targets --features cli --workspace --lcov --output-path lcov.info
+	cargo llvm-cov --tests --examples --all-targets --all-features --workspace --lcov --output-path lcov.info
 
 # Compute test coverage with HTML output
 coverage:

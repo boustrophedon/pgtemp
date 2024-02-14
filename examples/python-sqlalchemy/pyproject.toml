@@ -1,0 +1,15 @@
+[project]
+name = "pgtemp_example_py"
+description = "pgtemp-python example with sqlalchemy and alembic"
+version = "0.1.0"
+authors = [
+	{ name = "Harry Stern", email = "harry@harrystern.net" },
+]
+dependencies = [
+	"sqlalchemy",
+	"psycopg2",
+	"alembic",
+	"mypy",
+	"pytest",
+	"black"
+]

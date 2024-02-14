@@ -51,12 +51,12 @@ psql (16.1)
 Type "help" for help.
 
 postgres=#
-# or you could then e.g. run pytest
-$ pytest
 ```
 
-TODO: See examples/ directory for examples:
-- python with flask and sqlalchemy
+See examples/ directory for examples:
+- A simple diesel example with axum
+- A more complicated "task queue" example using triggers and LISTEN/NOTIFY with sqlx and axum
+- A python example with sqlalchemy and alembic, demonstrating usage with the pgtemp cli's normal and single modes
 
 ## Library
 
@@ -79,7 +79,3 @@ fn cool_db_test() {
 ```
 
 See the tests/ directory for complete library usage.
-
-TODO: See examples/ directory for examples:
-- axum and sqlx with migrations + connection pool
-- axum and diesel with migrations + connection pool

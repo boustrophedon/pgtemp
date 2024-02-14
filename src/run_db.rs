@@ -61,18 +61,6 @@ pub fn init_db(builder: &mut PgTempDBBuilder) -> TempDir {
         .args(["--username", &user])
         .args(["--pwfile", pwfile_str]);
 
-    #[cfg(feature = "pg16")]
-    {
-        let port = builder.get_port_or_set_random();
-        cmd.args(["-c", &format!("unix_socket_directories={}", data_dir_str)])
-            .args(["-c", &format!("port={port}")]);
-    }
-
-    #[cfg(feature = "pg16")]
-    for (key, val) in &builder.server_configs {
-        cmd.args(["-c", &format!("{}={}", key, val)]);
-    }
-
     // TODO: supply postgres install location in builder struct
     let initdb_output = cmd
         .output()
@@ -110,6 +98,9 @@ pub fn run_db(temp_dir: &TempDir, mut builder: PgTempDBBuilder) -> Child {
         .args(["-c", &format!("port={port}")])
         .arg("-F") // no fsync for faster setup and execution
         .args(["-D", data_dir.to_str().unwrap()]);
+    for (key, val) in &builder.server_configs {
+        pgcmd.args(["-c", &format!("{}={}", key, val)]);
+    }
 
     // don't output postgres output to stdout/stderr
     pgcmd
