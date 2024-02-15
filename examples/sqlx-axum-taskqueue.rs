@@ -93,7 +93,7 @@ async fn run_listener(conn_uri: &str) {
     // currently)
     // - add more listeners in parallel
 
-    let pool = connection_pool(&conn_uri).await;
+    let pool = connection_pool(conn_uri).await;
     // set up listener
     let mut pglistener = sqlx::postgres::PgListener::connect_with(&pool)
         .await
@@ -169,15 +169,15 @@ async fn run_sqlx_queue_example() {
     let pool = connection_pool(&conn_uri).await;
 
     // create queue execution thread runner
-    // Note that here we're re-using the same connection pool, but we could just as easily pass the
-    // conn_uri from above and make a new pool and it would connect to the same database. I don't
-    // think there's anything wrong with using the same pool in two different tokio runtimes.
+    // We could re-use the same connection pool here, but we pass the connection URI here to show
+    // that even if the execution thread used its own pool or a completely different library, it
+    // could still connect to the same pgtemp db.
     std::thread::spawn(move || {
         let rt = tokio::runtime::Runtime::new().expect("failed to start runtime");
         rt.block_on(async { run_listener(&conn_uri).await });
     });
 
-    // give the listener some time to start
+    // give the task listener some time to start
     std::thread::sleep(std::time::Duration::from_millis(200));
 
     // create a pglistener to listen for task execution events
