@@ -24,8 +24,8 @@ vim alembic/env.py
 ## Running tests
 ```
 # In a separate shell
-pgtemp postgresql://postgres@localhost:11432 # single mode
-pgtemp postgresql://postgres@localhost:22432 # normal mode
+cargo run --features cli -- --single postgresql://postgres@localhost:11432 # single mode
+cargo run --features cli -- postgresql://postgres@localhost:22432 # normal mode
 ```
 Then run `make test`
 
