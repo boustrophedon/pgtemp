@@ -2,7 +2,7 @@
 
 [![Coverage Status](https://coveralls.io/repos/github/boustrophedon/pgtemp/badge.svg?branch=master)](https://coveralls.io/github/boustrophedon/pgtemp?branch=master) [![CI Status](https://github.com/boustrophedon/pgtemp/actions/workflows/build-test.yaml/badge.svg)](https://github.com/boustrophedon/pgtemp/actions/workflows/build-test.yaml) [![crates.io](https://img.shields.io/crates/v/pgtemp)](https://crates.io/crates/pgtemp) [![docs.rs](https://img.shields.io/docsrs/pgtemp)](https://docs.rs/pgtemp/latest/pgtemp/)
 
-pgtemp is a Rust library and daemon that allows you to easily create temporary PostgreSQL databases (technically clusters) for testing.
+pgtemp is a Rust library and daemon that allows you to easily create temporary PostgreSQL databases (technically clusters) for testing without using Docker.
 
 The pgtemp Rust library allows you to spawn a PostgreSQL server in a temporary directory and get back a full connection URI with the host, port, username, and password.
 
@@ -20,8 +20,6 @@ steps:
   - name: Update path
     run: find /usr/lib/postgresql/ -type d -name "bin" >> $GITHUB_PATH
 ```
-
-The `pg16` feature can be enabled when using postgresql 16 or above to allow for setting arbitrary `postgres.conf` settings during initdb setup.
 
 To install the CLI tool, you must install it with the --features cli or --all-features options
 ```
