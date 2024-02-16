@@ -2,11 +2,11 @@
 
 [![Coverage Status](https://coveralls.io/repos/github/boustrophedon/pgtemp/badge.svg?branch=master)](https://coveralls.io/github/boustrophedon/pgtemp?branch=master) [![CI Status](https://github.com/boustrophedon/pgtemp/actions/workflows/build-test.yaml/badge.svg)](https://github.com/boustrophedon/pgtemp/actions/workflows/build-test.yaml) [![crates.io](https://img.shields.io/crates/v/pgtemp)](https://crates.io/crates/pgtemp) [![docs.rs](https://img.shields.io/docsrs/pgtemp)](https://docs.rs/pgtemp/latest/pgtemp/)
 
-pgtemp is a Rust library and daemon that allows you to easily create temporary PostgreSQL databases (technically clusters) for testing without using Docker.
+pgtemp is a Rust library and cli tool that allows you to easily create temporary PostgreSQL servers for testing without using Docker.
 
 The pgtemp Rust library allows you to spawn a PostgreSQL server in a temporary directory and get back a full connection URI with the host, port, username, and password.
 
-The pgtemp binary allows you to even more simply make temporary connections: Run pgtemp and then use its connection URI when connecting to the database in your tests. **pgtemp will then spawn a new postgresql process for each connection it receives** and transparently proxy everything over that connection to the temporary database. Note that this means when you make multiple connections in a single test, changes made in one connection will not be visible in the other connections.
+The pgtemp cli tool allows you to even more simply make temporary connections, and works with any language: Run pgtemp and then use its connection URI when connecting to the database in your tests. **pgtemp will then spawn a new postgresql process for each connection it receives** and transparently proxy everything over that connection to the temporary database. Note that this means when you make multiple connections in a single test, changes made in one connection will not be visible in the other connections, unless you are using pgtemp's `--single` mode.
 
 pgtemp supports loading (and dumping, in the library) the database to/from [dumpfiles via `pg_dump`](https://www.postgresql.org/docs/current/backup-dump.html).
 
@@ -42,7 +42,8 @@ The novel idea (as far as I'm aware, although I also only found out about the ab
 ## CLI
 ```
 $ cargo install --all-features pgtemp
-$ pgtemp postgresql://localhost:6543/mytestdb
+# username, password, port, and database name are all configurable based on the provided connection URI
+$ pgtemp postgresql://localhost:6543/mytestdb 
 starting pgtemp server at postgresql://postgres:password@localhost:6543/mytestdb
 $ psql postgresql://postgres:password@localhost:6543/mytestdb
 psql (16.1)
@@ -52,8 +53,6 @@ postgres=#
 ```
 
 See examples/ directory for examples:
-- A simple diesel example with axum
-- A more complicated "task queue" example using triggers and LISTEN/NOTIFY with sqlx and axum
 - A python example with sqlalchemy and alembic, demonstrating usage with the pgtemp cli's normal and single modes
 
 ## Library
@@ -75,5 +74,9 @@ fn cool_db_test() {
     // db is shut down and files cleaned up upon drop at the end of the test
 }
 ```
+
+Examples:
+- A simple diesel example with axum
+- A more complicated "task queue" example using triggers and LISTEN/NOTIFY with sqlx and axum
 
 See the tests/ directory for complete library usage.
