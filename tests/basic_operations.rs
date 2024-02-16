@@ -49,7 +49,8 @@ async fn buider_setters() {
         .with_username("testuser")
         .with_password("potato")
         .with_port(9954)
-        .with_dbname("testdb1");
+        .with_dbname("testdb1")
+        .with_config_param("max_connections", "777");
     assert_eq!(db.get_user(), "testuser");
     assert_eq!(db.get_password(), "potato");
     assert_eq!(db.get_port_or_set_random(), 9954);
@@ -63,6 +64,9 @@ async fn buider_setters() {
     assert_eq!(db.get_dbname(), db2.get_dbname());
 
     let db = db.start();
+    // test the debug and libpq conn strings formatters don't panic
+    println!("{:?}", db);
+    println!("{}", db.connection_string());
     let mut conn = PgConnection::connect(&db.connection_uri())
         .await
         .expect("failed to connect to db");
@@ -74,6 +78,15 @@ async fn buider_setters() {
 
     let name: String = row.get(0);
     assert_eq!(name, "testdb1");
+
+    // check config param setting as well
+    let row = sqlx::query("SELECT setting from pg_settings WHERE name = 'max_connections'")
+        .fetch_one(&mut conn)
+        .await
+        .expect("failed to execute current db query");
+
+    let name: &str = row.get(0);
+    assert_eq!(name, "777");
 }
 
 #[tokio::test]

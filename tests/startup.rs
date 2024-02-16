@@ -1,7 +1,3 @@
-// TODO: these are disabled in ci because ci doesn't have postgres16 (and presumably neither does
-// many existing deployments) but really they aren't needed since all the other tests basically
-// test these things anyway
-#![cfg(feature = "pg16")]
 use pgtemp::PgTempDB;
 
 #[test]
@@ -11,12 +7,8 @@ fn test_tempdb_bringup_shutdown() {
     let data_dir = db.data_dir().clone();
     let conf_file = data_dir.join("postgresql.conf");
 
-    // Read the conf file and check it isn't empty and the port is correct
-    let res = std::fs::read_to_string(&conf_file);
-    assert!(res.is_ok());
-    let text = res.unwrap();
-    assert!(!text.is_empty());
-    assert!(text.contains(&format!("port = {}", db.db_port())));
+    assert!(conf_file.exists());
+
     drop(db);
 
     assert!(!conf_file.exists());
@@ -29,12 +21,8 @@ async fn test_tempdb_bringup_shutdown_async() {
     let data_dir = db.data_dir().clone();
     let conf_file = data_dir.join("postgresql.conf");
 
-    // Read the conf file and check it isn't empty and the port is correct
-    let res = tokio::fs::read_to_string(&conf_file).await;
-    assert!(res.is_ok());
-    let text = res.unwrap();
-    assert!(!text.is_empty());
-    assert!(text.contains(&format!("port = {}", db.db_port())));
+    assert!(conf_file.exists());
+
     drop(db);
 
     assert!(!conf_file.exists());
@@ -51,32 +39,10 @@ fn test_tempdb_bringup_shutdown_persist() {
         .start();
     let data_dir = db.data_dir().clone();
     let conf_file = data_dir.join("postgresql.conf");
-    let port = db.db_port();
-    drop(db);
-
-    // Read the conf file and check it isn't empty and the port is correct
-    let res = std::fs::read_to_string(&conf_file);
-    assert!(res.is_ok());
-    let text = res.unwrap();
-    assert!(!text.is_empty());
-    assert!(text.contains(&format!("port = {}", port)));
 
     assert!(conf_file.exists());
-}
 
-#[test]
-/// Test extra config parameter option
-fn test_extra_config_setter() {
-    let db = PgTempDB::builder()
-        .with_config_param("max_connections", "1")
-        .start();
+    drop(db);
 
-    let data_dir = db.data_dir().clone();
-    let conf_file = data_dir.join("postgresql.conf");
-
-    // Read the conf file and check it has the setting
-    let res = std::fs::read_to_string(conf_file);
-    assert!(res.is_ok());
-    let text = res.unwrap();
-    assert!(text.contains("max_connections = 1"));
+    assert!(conf_file.exists());
 }
