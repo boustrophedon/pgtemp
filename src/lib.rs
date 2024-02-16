@@ -384,8 +384,8 @@ impl PgTempDBBuilder {
         self
     }
 
-    /// Set an arbitrary PostgreSQL server configuration parameter that will be inserted into
-    /// `postgresql.conf` by initdb.
+    /// Set an arbitrary PostgreSQL server configuration parameter that will passed to the
+    /// postgresql process at runtime.
     #[must_use]
     pub fn with_config_param(mut self, key: &str, value: &str) -> Self {
         let _old = self.server_configs.insert(key.into(), value.into());
