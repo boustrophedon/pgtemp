@@ -1,3 +1,5 @@
+//! Main binary for pgtemp. It just reads the arguments via clap and passes them to
+//! `PgTempDaemon::from_args`
 use clap::Parser;
 
 #[tokio::main]

@@ -7,6 +7,7 @@ use tokio::net::{TcpListener, TcpStream};
 use tokio::signal::unix::{signal, SignalKind};
 
 #[cfg(feature = "cli")]
+/// Contains the clap args struct
 pub mod cli {
     use clap::Parser;
     use std::path::PathBuf;
@@ -37,6 +38,9 @@ pub mod cli {
 pub use cli::PgTempDaemonArgs;
 
 #[derive(Debug)]
+/// A daemon that listens on the given port and creates a new [`PgTempDB`] for each connection it
+/// receives, proxying all data to the database. If `single_mode` is activated, all connections are
+/// proxied to the same database.
 pub struct PgTempDaemon {
     port: u16,
     single_mode: bool,
@@ -48,6 +52,7 @@ pub struct PgTempDaemon {
 
 impl PgTempDaemon {
     #[cfg(feature = "cli")]
+    /// Create a [`PgTempDaemon`] from the command line args given.
     pub async fn from_args(args: PgTempDaemonArgs) -> PgTempDaemon {
         let mut builder = PgTempDBBuilder::from_connection_uri(&args.connection_uri);
         if let Some(data_dir_prefix) = args.data_dir_prefix {
@@ -71,6 +76,7 @@ impl PgTempDaemon {
         daemon
     }
 
+    /// Quick start a daemon with default parameters.
     pub async fn async_new(port: u16) -> PgTempDaemon {
         let single_mode = false;
         let builder = PgTempDBBuilder::new();
@@ -107,6 +113,8 @@ impl PgTempDaemon {
         )
     }
 
+    /// Start the daemon, listening for either TCP connections on the configured port. The server
+    /// shuts down when sent a SIGINT (e.g. via ctrl-C).
     pub async fn start(mut self) {
         let uri = self.conn_uri();
         if self.single_mode {

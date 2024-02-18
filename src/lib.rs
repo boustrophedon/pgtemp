@@ -1,3 +1,11 @@
+#![warn(missing_docs)] // denied in CI
+
+//! pgtemp is a Rust library and cli tool that allows you to easily create temporary PostgreSQL servers for testing without using Docker.
+//!
+//! The pgtemp Rust library allows you to spawn a PostgreSQL server in a temporary directory and get back a full connection URI with the host, port, username, and password.
+//!
+//! The pgtemp cli tool allows you to even more simply make temporary connections, and works with any language: Run pgtemp and then use its connection URI when connecting to the database in your tests. **pgtemp will then spawn a new postgresql process for each connection it receives** and transparently proxy everything over that connection to the temporary database. Note that this means when you make multiple connections in a single test, changes made in one connection will not be visible in the other connections, unless you are using pgtemp's `--single` mode.
+
 use std::collections::HashMap;
 use std::fmt;
 use std::fmt::Debug;
@@ -302,6 +310,7 @@ pub struct PgTempDBBuilder {
 }
 
 impl PgTempDBBuilder {
+    /// Create a new [`PgTempDBBuilder`]
     pub fn new() -> PgTempDBBuilder {
         PgTempDBBuilder {
             temp_dir_prefix: None,
@@ -393,24 +402,28 @@ impl PgTempDBBuilder {
     }
 
     #[must_use]
+    /// Set the user name
     pub fn with_username(mut self, username: &str) -> Self {
         self.db_user = Some(username.to_string());
         self
     }
 
     #[must_use]
+    /// Set the user password
     pub fn with_password(mut self, password: &str) -> Self {
         self.password = Some(password.to_string());
         self
     }
 
     #[must_use]
+    /// Set the port
     pub fn with_port(mut self, port: u16) -> Self {
         self.port = Some(port);
         self
     }
 
     #[must_use]
+    /// Set the database name
     pub fn with_dbname(mut self, dbname: &str) -> Self {
         self.dbname = Some(dbname.to_string());
         self
