@@ -96,7 +96,12 @@ pub fn run_db(temp_dir: &TempDir, mut builder: PgTempDBBuilder) -> Child {
     pgcmd
         .args(["-c", &format!("unix_socket_directories={}", data_dir_str)])
         .args(["-c", &format!("port={port}")])
-        .arg("-F") // no fsync for faster setup and execution
+        // https://www.postgresql.org/docs/current/non-durability.html
+        // https://wiki.postgresql.org/wiki/Tuning_Your_PostgreSQL_Server
+        .args(["-c", "fsync=off"])
+        .args(["-c", "synchronous_commit=off"])
+        .args(["-c", "full_page_writes=off"])
+        .args(["-c", "autovacuum=off"])
         .args(["-D", data_dir.to_str().unwrap()]);
     for (key, val) in &builder.server_configs {
         pgcmd.args(["-c", &format!("{}={}", key, val)]);
