@@ -17,6 +17,7 @@ test-ci:
 # Run clippy
 lint:
 	cargo clippy --no-deps --all-targets --all-features -- -W clippy::pedantic \
+		-D missing-docs \
 		-A clippy::let-unit-value \
 		-A clippy::wildcard-imports \
 		-A clippy::module-name-repetitions \

@@ -1,32 +1,32 @@
-/// # Sqlx task queue example
-/// This provides an example of using triggers, sql functions, and listen/notify with pgtemp to
-/// demonstrate that pgtemp works with more advanced postgres features.
-///
-/// A connection pool is created, and sqlx migrations (in the `examples/sqlx-migrations` directory)
-/// are run on startup.
-///
-/// The migrations contain a tasks table along with a trigger and function that sends a
-/// notification to the postgresql "insert_tasks" NOTIFY channel when a row is inserted to the
-/// tasks table.
-///
-/// There is a thread (`run_listener`) that is spawned separately which listens to the
-/// instert_tasks channel and selects a task to "execute" (here just printing out the task text).
-///
-/// There is an axum server with a `create_task` and `list_completed_tasks` endpoint.
-///
-/// We create two tasks, wait a second, and then check that when we list all completed tasks both
-/// tasks have been processed by the listener and marked complete.
-///
-/// # How this example was set up
-///
-/// Install the sqlx CLI
-/// `cargo install sqlx-cli --no-default-features --features native-tls,postgres`
-///
-/// Set up the migration
-///
-/// `sqlx migrate add -r --source examples/sqlx-migrations create_tasks_table`
-///
-/// The sqlx CLI does not require a running database in this case.
+//! # Sqlx task queue example
+//! This provides an example of using triggers, sql functions, and listen/notify with pgtemp to
+//! demonstrate that pgtemp works with more advanced postgres features.
+//!
+//! A connection pool is created, and sqlx migrations (in the `examples/sqlx-migrations` directory)
+//! are run on startup.
+//!
+//! The migrations contain a tasks table along with a trigger and function that sends a
+//! notification to the postgresql "insert_tasks" NOTIFY channel when a row is inserted to the
+//! tasks table.
+//!
+//! There is a thread (`run_listener`) that is spawned separately which listens to the
+//! instert_tasks channel and selects a task to "execute" (here just printing out the task text).
+//!
+//! There is an axum server with a `create_task` and `list_completed_tasks` endpoint.
+//!
+//! We create two tasks, wait a second, and then check that when we list all completed tasks both
+//! tasks have been processed by the listener and marked complete.
+//!
+//! # How this example was set up
+//!
+//! Install the sqlx CLI
+//! `cargo install sqlx-cli --no-default-features --features native-tls,postgres`
+//!
+//! Set up the migration
+//!
+//! `sqlx migrate add -r --source examples/sqlx-migrations create_tasks_table`
+//!
+//! The sqlx CLI does not require a running database in this case.
 use axum::{
     extract::State,
     routing::{get, post},
