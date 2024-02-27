@@ -13,11 +13,15 @@ pub mod cli {
     use std::path::PathBuf;
 
     #[derive(Parser, Debug)]
-    #[command(author, version, about)]
+    #[command(author, version)]
     /// pgtemp allows you to spawn temporary postgresql databases for testing.
+    /// You provide a connection URI and pgtemp will listen on the given port and proxy each
+    /// connection to a new temporary database.
+    /// When the connection is disconnected, the database is cleaned up.
     pub struct PgTempDaemonArgs {
         #[arg(long)]
-        /// Single mode makes every connection go to the same database
+        /// Single mode makes every connection go to the same database, rather than starting a new
+        /// one per connection.
         pub single: bool,
 
         #[arg(long, value_name = "DIR")]
@@ -29,7 +33,7 @@ pub mod cli {
         pub load_from: Option<PathBuf>,
 
         /// The postgres connection uri to be used by pgtemp clients.
-        /// E.g. postgres://localhost:5432/mytestdb
+        /// E.g. postgresql://localhost:5432/mytestdb
         pub connection_uri: String,
     }
 }
@@ -93,7 +97,7 @@ impl PgTempDaemon {
         daemon
     }
 
-    /// Add a new pre-initialized PgTempDB
+    /// Pre-initialize a [`PgTempDB`]
     pub async fn allocate_db(&mut self) {
         let mut builder = self.builder.clone();
         // Reset the port so that a port is allocated randomly when we make

@@ -22,9 +22,9 @@ pub use daemon::*;
 
 // temp db handle - actual db spawning code is in run_db mod
 
-/// A struct representing a handle to a local PostgreSQL database that is currently running. Upon
-/// drop or calling `shutdown`, the database is shut down and the directory its data is stored in
-/// is deleted.
+/// A struct representing a handle to a local PostgreSQL server that is currently running. Upon
+/// drop or calling `shutdown`, the server is shut down and the directory its data is stored in
+/// is deleted. See builder struct [`PgTempDBBuilder`] for options and settings.
 pub struct PgTempDB {
     dbuser: String,
     dbpass: String,
@@ -89,7 +89,7 @@ impl PgTempDB {
     }
 
     /// Use [pg_dump](https://www.postgresql.org/docs/current/backup-dump.html) to dump the
-    /// database to the provided path.
+    /// database to the provided path upon drop or [`Self::shutdown`].
     pub fn dump_database(&self, path: impl AsRef<Path>) {
         let path_str = path.as_ref().to_str().unwrap();
 
@@ -280,24 +280,17 @@ impl Drop for PgTempDB {
 // db config builder functions
 
 /// Builder struct for PgTempDB.
-///
-/// Defaults:
-/// temp dir prefix: `std::env::temp_dir()`, inside which `pgtemp-<random>/pg_data_dir` is created.
-/// db_user: `postgres`
-/// password: `password`
-/// port: `<random unused port>` set when `PgTempDBBuilder::start` is called.
-/// dbname: `postgres` - created by initdb default
 #[derive(Debug, Clone)]
 pub struct PgTempDBBuilder {
-    /// The directory in which to store the temporary PostgreSQL data directory
+    /// The directory in which to store the temporary PostgreSQL data directory.
     pub temp_dir_prefix: Option<PathBuf>,
-    /// The cluster superuser created with `initdb`
+    /// The cluster superuser created with `initdb`. Default: `postgres`
     pub db_user: Option<String>,
-    /// The password for the cluster superuser
+    /// The password for the cluster superuser. Default: `password`
     pub password: Option<String>,
-    /// The port the server should run on.
+    /// The port the server should run on. Default: random unused port.
     pub port: Option<u16>,
-    /// The name of the database to create on startup
+    /// The name of the database to create on startup. Default: `postgres`.
     pub dbname: Option<String>,
     /// Do not delete the data dir when the `PgTempDB` is dropped.
     pub persist_data_dir: bool,
@@ -430,22 +423,21 @@ impl PgTempDBBuilder {
     }
 
     /// If set, the postgres data directory will not be deleted when the `PgTempDB` is dropped.
-    /// Note that if you are going to use this feature, make sure to disconnect all clients before
-    /// dropping the database.
     #[must_use]
     pub fn persist_data(mut self, persist: bool) -> Self {
         self.persist_data_dir = persist;
         self
     }
 
-    /// If set, the database will be dumped via the `pg_dump` utility to the given location.
+    /// If set, the database will be dumped via the `pg_dump` utility to the given location on drop
+    /// or upon calling [`PgTempDB::shutdown`].
     #[must_use]
     pub fn dump_database(mut self, path: &Path) -> Self {
         self.dump_path = Some(path.into());
         self
     }
 
-    /// If set, the database will be loaded via `psql` from the given script.
+    /// If set, the database will be loaded via `psql` from the given script on startup.
     #[must_use]
     pub fn load_database(mut self, path: &Path) -> Self {
         self.load_path = Some(path.into());

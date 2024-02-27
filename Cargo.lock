@@ -1293,7 +1293,7 @@ checksum = "e3148f5046208a5d56bcfc03053e3ca6334e51da8dfb19b6cdc8b306fae3283e"
 
 [[package]]
 name = "pgtemp"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "axum",
  "clap",
