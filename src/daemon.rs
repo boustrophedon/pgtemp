@@ -10,6 +10,7 @@ use tokio::signal::unix::{signal, SignalKind};
 /// Contains the clap args struct
 pub mod cli {
     use clap::Parser;
+    use std::error::Error;
     use std::path::PathBuf;
 
     #[derive(Parser, Debug)]
@@ -32,9 +33,29 @@ pub mod cli {
         /// The sql script to be loaded on startup
         pub load_from: Option<PathBuf>,
 
+        #[arg(long, short = 'o', value_name = "KEY=VAL", value_parser = parse_key_val::<String, String>)]
+        /// PostgreSQL server configuration parameters in key=value format to pass on startup. May
+        /// be passed multiple times.
+        pub server_params: Vec<(String, String)>,
+
         /// The postgres connection uri to be used by pgtemp clients.
         /// E.g. postgresql://localhost:5432/mytestdb
         pub connection_uri: String,
+    }
+
+    // from https://github.com/clap-rs/clap/blob/d681a81dd7f4d7ff71f2e65be26d8f90783f7b40/examples/typed-derive.rs#L47C1-L59C2
+    /// Parse a single key-value pair
+    fn parse_key_val<T, U>(s: &str) -> Result<(T, U), Box<dyn Error + Send + Sync + 'static>>
+    where
+        T: std::str::FromStr,
+        T::Err: Error + Send + Sync + 'static,
+        U: std::str::FromStr,
+        U::Err: Error + Send + Sync + 'static,
+    {
+        let pos = s
+            .find('=')
+            .ok_or_else(|| format!("invalid KEY=value: no `=` found in `{s}`"))?;
+        Ok((s[..pos].parse()?, s[pos + 1..].parse()?))
     }
 }
 
@@ -64,6 +85,10 @@ impl PgTempDaemon {
         }
         if let Some(load_from) = args.load_from {
             builder = builder.load_database(&load_from);
+        }
+        for (key, value) in args.server_params {
+            builder = builder.with_config_param(&key, &value);
+            eprintln!("{}={}", key, value);
         }
 
         let port = builder.get_port_or_set_random();

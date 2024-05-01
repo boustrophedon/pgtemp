@@ -96,6 +96,7 @@ async fn daemon_single_mode() {
         single: true,
         data_dir_prefix: Some(temp_prefix.path().into()),
         load_from: None,
+        server_params: vec![("geqo".into(), "off".into()), ("jit".into(), "off".into())],
         connection_uri: uri.to_string(),
     };
 
@@ -110,6 +111,9 @@ async fn daemon_single_mode() {
         .await
         .expect("failed to connect to db");
 
+    // check the config params were set
+    check_config(&mut conn1).await;
+
     // create table on conn 2
     create_table(&mut conn2).await;
 
@@ -119,6 +123,23 @@ async fn daemon_single_mode() {
     // check data on both
     check_data(&mut conn1, "test").await;
     check_data(&mut conn2, "test").await;
+}
+
+async fn check_config(conn: &mut PgConn) {
+    // jit, ssl, and geqo are the shorted postgres config names but we can't turn on ssl
+    let rows = sqlx::query("SELECT name, setting from pg_settings WHERE name = 'jit' OR name = 'geqo' ORDER BY name ASC")
+        .fetch_all(conn)
+        .await
+        .expect("failed to get config settings");
+    assert_eq!(rows.len(), 2);
+
+    let row = &rows[1];
+    let geqo: &str = row.get(1);
+    assert_eq!(geqo, "off");
+
+    let row = &rows[0];
+    let jit: &str = row.get(1);
+    assert_eq!(jit, "off");
 }
 
 async fn create_table(conn: &mut PgConn) {

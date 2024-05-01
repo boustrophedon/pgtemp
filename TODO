@@ -5,7 +5,7 @@ await db.async_shutdown()
 
 - .pgpass file instead of just writing password to file? only seems to be an issue for createdb and really at that point we could just execute with psql instead.
 
-- support all builder options in cli (--persist, custom config params)
+- support all builder options in cli (e.g. --persist)
 
 - cache initial files from initdb or otherwise optimize all setup stuff
 

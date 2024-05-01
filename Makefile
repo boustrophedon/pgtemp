@@ -8,7 +8,7 @@ build:
 test:
 	cargo test --tests --examples --all-features
 
-# Run all tests with and without all features (excluding pg16 since github runners do not support it)
+# Run all tests with and without all features
 test-ci:
 	cargo test --tests --examples --no-default-features
 	cargo test --tests --examples --all-features
@@ -26,7 +26,8 @@ lint:
 		-A clippy::doc-markdown \
 		-A clippy::missing-panics-doc \
 		-A clippy::new-without-default \
-		-A clippy::expect-fun-call
+		-A clippy::expect-fun-call \
+		-A clippy::no_effect_underscore_binding # TODO: fixed in clippy, can remove eventually
 
 # Generate docs
 doc:
