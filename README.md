@@ -10,6 +10,8 @@ The pgtemp cli tool allows you to even more simply make temporary connections, a
 
 pgtemp supports loading (and dumping, in the library) the database to/from [dumpfiles via `pg_dump`](https://www.postgresql.org/docs/current/backup-dump.html).
 
+Note that the default postgres authentication configuration (`pg_hba.conf`) in most cases allows all local connections. Since pgtemp only allows you to make servers that listen on localhost, this means in most cases you do not need to provide a password to connect. You may set the server's `hba_file` parameter in `PgTempDBBuilder::with_config_param` or use the pgtemp daemon's `-o` flag to pass `hba_file` there.
+
 # Requirements
 You must install both the postgresql client and server packages. On Debian/Ubuntu, they are `postgresql postgresql-client`, on Fedora they are `postgresql postgresql-server`, and on Arch Linux they are `postgresql postgresql-libs`. Note also that Debian/Ubuntu install the standard postgres binaries into their own directory, so you must add them to your path. For an Ubuntu GitHub Actions runner, it looks like:
 

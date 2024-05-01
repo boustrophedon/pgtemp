@@ -446,18 +446,12 @@ impl PgTempDBBuilder {
 
     /// Get user if set or return default
     pub fn get_user(&self) -> String {
-        self.db_user
-            .as_ref()
-            .cloned()
-            .unwrap_or(String::from("postgres"))
+        self.db_user.clone().unwrap_or(String::from("postgres"))
     }
 
     /// Get password if set or return default
     pub fn get_password(&self) -> String {
-        self.password
-            .as_ref()
-            .cloned()
-            .unwrap_or(String::from("password"))
+        self.password.clone().unwrap_or(String::from("password"))
     }
 
     /// Unlike the other getters, this getter will try to open a new socket to find an unused port,
@@ -471,10 +465,7 @@ impl PgTempDBBuilder {
 
     /// Get dbname if set or return default
     pub fn get_dbname(&self) -> String {
-        self.dbname
-            .as_ref()
-            .cloned()
-            .unwrap_or(String::from("postgres"))
+        self.dbname.clone().unwrap_or(String::from("postgres"))
     }
 }
 
