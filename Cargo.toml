@@ -1,6 +1,6 @@
 [package]
 name = "pgtemp"
-version = "0.2.1"
+version = "0.3.0"
 edition = "2021"
 authors = ["Harry Stern <harry@harrystern.net>",]
 description = "Start local postgres servers for testing without Docker"

@@ -1,5 +1,8 @@
 unreleased
 ----------
+
+0.3.0
+-----
 Add -o options to pgtemp daemon for postgresql server configs
 
 0.2
