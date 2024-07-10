@@ -171,6 +171,11 @@ impl PgTempDB {
         //     }
         // });
 
+        // If the server's process was already killed, stop.
+        if self.postgres_process.is_none() {
+            return;
+        }
+
         // do the dump while the postgres process is still running
         if let Some(path) = &self.dump_path {
             self.dump_database(path);

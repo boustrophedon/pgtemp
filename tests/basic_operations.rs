@@ -130,3 +130,13 @@ async fn create_table_and_insert() {
     assert_eq!(id, 1);
     assert_eq!(name, "example name");
 }
+
+#[test]
+/// check that dropping the temp DB after calling shutdown doesn't trigger a panic
+fn safe_shutdown() {
+    let mut db = PgTempDB::new();
+    assert_eq!(db.db_name(), "postgres");
+
+    db.shutdown();
+    drop(db);
+}
