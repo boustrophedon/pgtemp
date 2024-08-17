@@ -26,8 +26,7 @@ lint:
 		-A clippy::doc-markdown \
 		-A clippy::missing-panics-doc \
 		-A clippy::new-without-default \
-		-A clippy::expect-fun-call \
-		-A clippy::no_effect_underscore_binding # TODO: fixed in clippy, can remove eventually
+		-A clippy::expect-fun-call
 
 # Generate docs
 doc:
