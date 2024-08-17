@@ -14,6 +14,20 @@ fn test_tempdb_bringup_shutdown() {
     assert!(!conf_file.exists());
 }
 
+#[test]
+/// Calling shutdown is the same as drop
+fn test_tempdb_shutdown_consumes() {
+    let db = PgTempDB::new();
+    let data_dir = db.data_dir().clone();
+    let conf_file = data_dir.join("postgresql.conf");
+
+    assert!(conf_file.exists());
+
+    db.shutdown();
+
+    assert!(!conf_file.exists());
+}
+
 #[tokio::test]
 /// Async version of tempdb_bringup_shutdown
 async fn test_tempdb_bringup_shutdown_async() {
