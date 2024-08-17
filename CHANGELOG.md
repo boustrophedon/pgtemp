@@ -1,5 +1,6 @@
 unreleased
 ----------
+Make shutdown function consume the db
 
 0.3.0
 -----

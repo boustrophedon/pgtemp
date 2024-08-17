@@ -145,7 +145,12 @@ impl PgTempDB {
     /// the database manually) this function will hang indefinitely. In most cases this shouldn't
     /// be an issue because objects are dropped in reverse order of creation, so a connection will
     /// be dropped before the database.
-    pub fn shutdown(&mut self) {
+    pub fn shutdown(self) {
+        drop(self);
+    }
+
+    /// See description of [`shutdown`]
+    fn shutdown_internal(&mut self) {
         // TODO: I believe that the spawned thread below isn't getting time to run for the last
         // test that executes in a given process, so we leak tempdbs in the filesystem. I don't
         // know a good way to prevent this besides sleeping so I think the next best thing is to
@@ -273,7 +278,7 @@ impl Debug for PgTempDB {
 
 impl Drop for PgTempDB {
     fn drop(&mut self) {
-        self.shutdown();
+        self.shutdown_internal();
     }
 }
 

@@ -125,6 +125,7 @@ async fn daemon_single_mode() {
     check_data(&mut conn2, "test").await;
 }
 
+#[cfg(feature = "cli")]
 async fn check_config(conn: &mut PgConn) {
     // jit, ssl, and geqo are the shorted postgres config names but we can't turn on ssl
     let rows = sqlx::query("SELECT name, setting from pg_settings WHERE name = 'jit' OR name = 'geqo' ORDER BY name ASC")
