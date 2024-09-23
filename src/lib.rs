@@ -134,74 +134,55 @@ impl PgTempDB {
     /// Send a signal to the database to shutdown the server, then wait for the process to exit.
     /// Equivalent to calling drop on this struct.
     ///
-    /// NOTE: This is currently a blocking function. It sends SIGKILL and waits for the process to
-    /// exit, and also does IO to remove the temp directory. This shouldn't matter since even in
-    /// async test functions it's only going to run at the end of the test, and it shouldn't
-    /// block indefinitely.
+    /// We send SIGINT to the postgres process to initiate a fast shutdown
+    /// (<https://www.postgresql.org/docs/current/server-shutdown.html>), which causes all transactions to be aborted and
+    /// connections to be terminated.
     ///
-    /// However, if the persist option is set, this function will attempt to shut down postgres
-    /// gracefully by sending it a SIGTERM. Postgres will not shut down until all clients have
-    /// disconnected, so if you call shutdown while a connection is still active (e.g. by dropping
-    /// the database manually) this function will hang indefinitely. In most cases this shouldn't
-    /// be an issue because objects are dropped in reverse order of creation, so a connection will
-    /// be dropped before the database.
+    /// NOTE: This is currently a blocking function. It sends SIGINT to the postgres server, waits
+    /// for the process to exit, and also does IO to remove the temp directory.
+    ///
     pub fn shutdown(self) {
         drop(self);
     }
 
     /// See description of [`shutdown`]
     fn shutdown_internal(&mut self) {
-        // TODO: I believe that the spawned thread below isn't getting time to run for the last
-        // test that executes in a given process, so we leak tempdbs in the filesystem. I don't
-        // know a good way to prevent this besides sleeping so I think the next best thing is to
-        // just block (the postgress_process.wait and all the fs operations TempDir::close does)
-        // even if we're in an async context.
-        //
-        // // Since the Drop trait is not async but we have to wait for the postgres process to exit
-        // // before deleting the directory, move the postgres server process and temp dir structs
-        // // into a "cleanup" thread
-
-        // let mut postgres_process = self.postgres_process.take().unwrap();
-        // let temp_dir = self.temp_dir.take().unwrap();
-        // std::thread::spawn(move || {
-        //     // graceful shutdown
-        //     // let _ret = unsafe { libc::kill(postgres_process.id() as i32, libc::SIGTERM) };
-        //     postgres_process.wait().expect("postgres server failed to exit cleanly");
-        //     if persist {
-        //         // this prevents it from being auto deleted
-        //         let _path = temp_dir.into_path();
-        //     }
-        //     else {
-        //         drop(temp_dir);
-        //     }
-        // });
+        // if no process (e.g. due to calling `force_shutdown`), just skip the cleanup operations.
+        if self.postgres_process.is_none() {
+            return;
+        }
 
         // do the dump while the postgres process is still running
         if let Some(path) = &self.dump_path {
             self.dump_database(path);
         }
 
-        let mut postgres_process = self.postgres_process.take().unwrap();
+        let postgres_process = self
+            .postgres_process
+            .take()
+            .expect("shutdown with no postgres process");
         let temp_dir = self.temp_dir.take().unwrap();
 
+        // fast (not graceful) shutdown via SIGINT
+        // TODO: graceful shutdown via SIGTERM
+        // was having issues with using graceful shutdown by default and some tests/examples using
+        // pg connection pools - likely what was happening was that at the end of the test we hit
+        // drop for the connection pool, it tries to drop asynchronously (e.g. it probably sends a
+        // async signal), then we block indefinitely on the main thread in PgTempDB::shutdown
+        // waiting for the server to shut down and the pooler never gets a chance to shut down, so
+        // the postgres server says "we're still connected to a client, can't shut down yet" and we
+        // have a deadlock.
+        #[allow(clippy::cast_possible_wrap)]
+        let _ret = unsafe { libc::kill(postgres_process.id() as i32, libc::SIGINT) };
+        let _output = postgres_process
+            .wait_with_output()
+            .expect("postgres server failed to exit cleanly");
+
         if self.persist {
-            // graceful shutdown if we're trying to persist.
-            #[allow(clippy::cast_possible_wrap)]
-            let _ret = unsafe { libc::kill(postgres_process.id() as i32, libc::SIGTERM) };
-            let _output = postgres_process
-                .wait_with_output()
-                .expect("postgres server failed to exit cleanly");
-            // this prevents it from being deleted on drop
+            // this prevents the dir from being deleted on drop
             let _path = temp_dir.into_path();
         } else {
-            // If there are clients connected the server will not shut down until they are
-            // disconnected, so we should just send sigkill and end it immediately.
-            postgres_process
-                .kill()
-                .expect("postgres server could not be killed");
-            let _output = postgres_process
-                .wait_with_output()
-                .expect("postgres server failed to exit cleanly");
+            // if we just used the default drop impl, errors would not be surfaced
             temp_dir.close().expect("failed to clean up temp directory");
         }
     }

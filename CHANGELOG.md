@@ -1,5 +1,9 @@
 unreleased
 ----------
+- Make shutdown use SIGINT for fast shutdown, which still actively terminates
+  connections but does not leak resources.
+  This is a breaking change - using the persist option does not use graceful
+  shutdown via SIGTERM anymore.
 
 0.4.0
 -----
