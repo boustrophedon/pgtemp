@@ -194,11 +194,12 @@ impl PgTempDB {
             // this prevents it from being deleted on drop
             let _path = temp_dir.into_path();
         } else {
-            // If there are clients connected the server will not shut down until they are
-            // disconnected, so we should just send sigkill and end it immediately.
-            postgres_process
-                .kill()
-                .expect("postgres server could not be killed");
+            // NOTE: If there are clients connected the server will not shut down until they are
+            // disconnected. It appears sending SIGKILL via postgress_process.kill() will leak
+            // memory, however.
+            //
+            // TODO: we don't need the kill inside this if anymore if this fixes the problem
+            let _ret = unsafe { libc::kill(postgres_process.id() as i32, libc::SIGTERM) };
             let _output = postgres_process
                 .wait_with_output()
                 .expect("postgres server failed to exit cleanly");
