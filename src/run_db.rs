@@ -46,14 +46,20 @@ pub fn init_db(builder: &mut PgTempDBBuilder) -> TempDir {
     let pwfile_str = pwfile.to_str().unwrap();
     std::fs::write(&pwfile, password).expect("failed to write password file");
 
+    let initdb_path = builder
+        .bin_path
+        .as_ref()
+        .map(|p| p.join("initdb"))
+        .unwrap_or("initdb".into());
+
     // postgres will not run as root, so try to run initdb as postgres user if we are root so that
     // when running the server as the postgres user it can access the files
     let mut cmd: Command;
     if current_user_is_root() {
         cmd = Command::new("sudo");
-        cmd.args(["-u", "postgres"]).arg("initdb");
+        cmd.args(["-u", "postgres"]).arg(initdb_path);
     } else {
-        cmd = Command::new("initdb");
+        cmd = Command::new(initdb_path);
     }
 
     cmd.args(["-D", data_dir_str])
@@ -85,12 +91,17 @@ pub fn run_db(temp_dir: &TempDir, mut builder: PgTempDBBuilder) -> Child {
     let port = builder.get_port_or_set_random();
 
     // postgres will not run as root, so try to run as postgres if we are root
+    let postgres_path = builder
+        .bin_path
+        .as_ref()
+        .map(|p| p.join("postgres"))
+        .unwrap_or("postgres".into());
     let mut pgcmd: Command;
     if current_user_is_root() {
         pgcmd = Command::new("sudo");
-        pgcmd.args(["-u", "postgres"]).arg("postgres");
+        pgcmd.args(["-u", "postgres"]).arg(postgres_path);
     } else {
-        pgcmd = Command::new("postgres");
+        pgcmd = Command::new(postgres_path);
     };
 
     pgcmd
@@ -131,7 +142,12 @@ pub fn run_db(temp_dir: &TempDir, mut builder: PgTempDBBuilder) -> Child {
         // expense of adding Cargo dependency)
         //
         // alternatively just use psql
-        let mut dbcmd = Command::new("createdb");
+        let createdb_path = builder
+            .bin_path
+            .as_ref()
+            .map(|p| p.join("createdb"))
+            .unwrap_or("createdb".into());
+        let mut dbcmd = Command::new(createdb_path);
         dbcmd
             .args(["--host", "localhost"])
             .args(["--port", &port.to_string()])

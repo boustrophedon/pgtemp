@@ -266,7 +266,7 @@ impl Drop for PgTempDB {
 // db config builder functions
 
 /// Builder struct for PgTempDB.
-#[derive(Debug, Clone)]
+#[derive(Default, Debug, Clone)]
 pub struct PgTempDBBuilder {
     /// The directory in which to store the temporary PostgreSQL data directory.
     pub temp_dir_prefix: Option<PathBuf>,
@@ -286,22 +286,14 @@ pub struct PgTempDBBuilder {
     pub load_path: Option<PathBuf>,
     /// Other server configuration data to be set in `postgresql.conf` via `initdb -c`
     pub server_configs: HashMap<String, String>,
+    /// Prefix PostgreSQL binary names (`initdb`, `createdb`, and `postgres`) with this path, instead of searching $PATH
+    pub bin_path: Option<PathBuf>,
 }
 
 impl PgTempDBBuilder {
     /// Create a new [`PgTempDBBuilder`]
     pub fn new() -> PgTempDBBuilder {
-        PgTempDBBuilder {
-            temp_dir_prefix: None,
-            db_user: None,
-            password: None,
-            port: None,
-            dbname: None,
-            persist_data_dir: false,
-            dump_path: None,
-            load_path: None,
-            server_configs: HashMap::new(),
-        }
+        PgTempDBBuilder::default()
     }
 
     /// Parses the parameters out of a PostgreSQL connection URI and inserts them into the builder.
@@ -377,6 +369,13 @@ impl PgTempDBBuilder {
     #[must_use]
     pub fn with_config_param(mut self, key: &str, value: &str) -> Self {
         let _old = self.server_configs.insert(key.into(), value.into());
+        self
+    }
+
+    /// Set the directory that contains binaries like `initdb`, `createdb`, and `postgres`.
+    #[must_use]
+    pub fn with_bin_path(mut self, path: impl AsRef<Path>) -> Self {
+        self.bin_path = Some(PathBuf::from(path.as_ref()));
         self
     }
 
