@@ -1,3 +1,5 @@
+//! Tests for the pgtemp daemon
+
 use sqlx::postgres::PgConnection;
 use sqlx::prelude::*;
 

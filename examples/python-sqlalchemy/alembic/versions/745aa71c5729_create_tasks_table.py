@@ -1,7 +1,7 @@
 """create tasks table
 
 Revision ID: 745aa71c5729
-Revises: 
+Revises:
 Create Date: 2024-02-13 08:32:25.586605
 
 """

@@ -1,3 +1,5 @@
+//! Tests for the dump and restore functionality
+
 use pgtemp::PgTempDB;
 use sqlx::postgres::PgConnection;
 use sqlx::prelude::*;

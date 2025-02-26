@@ -1,3 +1,5 @@
+//! Cleanup on panic
+
 /// demonstrates standard rust behavior that typically when a function panics, drop is still
 /// called (although this is not guaranteed in all cases)
 #[test]
