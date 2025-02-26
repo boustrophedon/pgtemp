@@ -1,3 +1,5 @@
+//! Basic startup/shutdown tests
+
 use pgtemp::PgTempDB;
 
 #[test]
@@ -77,6 +79,8 @@ fn test_tempdb_bin_path() {
         let mut p = f.metadata().unwrap().permissions();
         p.set_mode(0o700);
         f.set_permissions(p).unwrap();
+        f.sync_all().unwrap();
+        drop(f);
     }
     let _db = PgTempDB::builder().with_bin_path(&bindir).start();
 }

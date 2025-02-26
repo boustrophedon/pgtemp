@@ -1,3 +1,5 @@
+//! Test basic functionality
+
 use pgtemp::{PgTempDB, PgTempDBBuilder};
 use sqlx::postgres::PgConnection;
 use sqlx::prelude::*;

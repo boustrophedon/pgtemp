@@ -49,8 +49,7 @@ pub fn init_db(builder: &mut PgTempDBBuilder) -> TempDir {
     let initdb_path = builder
         .bin_path
         .as_ref()
-        .map(|p| p.join("initdb"))
-        .unwrap_or("initdb".into());
+        .map_or("initdb".into(), |p| p.join("initdb"));
 
     // postgres will not run as root, so try to run initdb as postgres user if we are root so that
     // when running the server as the postgres user it can access the files
@@ -94,8 +93,7 @@ pub fn run_db(temp_dir: &TempDir, mut builder: PgTempDBBuilder) -> Child {
     let postgres_path = builder
         .bin_path
         .as_ref()
-        .map(|p| p.join("postgres"))
-        .unwrap_or("postgres".into());
+        .map_or("postgres".into(), |p| p.join("postgres"));
     let mut pgcmd: Command;
     if current_user_is_root() {
         pgcmd = Command::new("sudo");
@@ -145,8 +143,7 @@ pub fn run_db(temp_dir: &TempDir, mut builder: PgTempDBBuilder) -> Child {
         let createdb_path = builder
             .bin_path
             .as_ref()
-            .map(|p| p.join("createdb"))
-            .unwrap_or("createdb".into());
+            .map_or("createdb".into(), |p| p.join("createdb"));
         let mut dbcmd = Command::new(createdb_path);
         dbcmd
             .args(["--host", "localhost"])
