@@ -3,6 +3,8 @@ use tempfile::TempDir;
 
 use crate::PgTempDBBuilder;
 
+const CREATEDB_MAX_TRIES: u32 = 5;
+
 fn current_user_is_root() -> bool {
     unsafe { libc::getuid() == 0 }
 }
@@ -125,10 +127,6 @@ pub fn run_db(temp_dir: &TempDir, mut builder: PgTempDBBuilder) -> Child {
         .spawn()
         .expect("Failed to start postgres. Is it installed and on your path?");
 
-    // TODO: read from postgres stderr says "ready to accept connections"
-    // or just loop on tcp connecting to db?
-    std::thread::sleep(std::time::Duration::from_millis(100));
-
     let user = builder.get_user();
     //let password = builder.get_password();
     let port = builder.get_port_or_set_random();
@@ -145,22 +143,32 @@ pub fn run_db(temp_dir: &TempDir, mut builder: PgTempDBBuilder) -> Child {
             .as_ref()
             .map_or("createdb".into(), |p| p.join("createdb"));
         let mut dbcmd = Command::new(createdb_path);
-        dbcmd
-            .args(["--host", "localhost"])
-            .args(["--port", &port.to_string()])
-            .args(["--username", &user])
-            // TODO: use template in pgtemp daemon single-cluster mode?
-            //.args(["--template", "..."]
-            // TODO: since we trust local users by default we don't actually
-            // need the password but we should provide it anyway since we
-            // provide it everywhere else
-            .arg("--no-password")
-            .arg(&dbname);
-        let createdb_output = dbcmd.output().expect("Failed to start createdb. Is it installed and on your path? It's typically part of the postgres-libs or postgres-client package.");
+        let mut createdb_last_error_output = None;
 
-        if !createdb_output.status.success() {
-            let stdout = createdb_output.stdout;
-            let stderr = createdb_output.stderr;
+        for _ in 0..CREATEDB_MAX_TRIES {
+            dbcmd
+                .args(["--host", "localhost"])
+                .args(["--port", &port.to_string()])
+                .args(["--username", &user])
+                // TODO: use template in pgtemp daemon single-cluster mode?
+                //.args(["--template", "..."]
+                // TODO: since we trust local users by default we don't actually
+                // need the password but we should provide it anyway since we
+                // provide it everywhere else
+                .arg("--no-password")
+                .arg(&dbname);
+
+            let output = dbcmd.output().expect("Failed to start createdb. Is it installed and on your path? It's typically part of the postgres-libs or postgres-client package.");
+            if output.status.success() {
+                createdb_last_error_output = None;
+                break;
+            }
+            createdb_last_error_output = Some(output);
+        }
+
+        if let Some(output) = createdb_last_error_output {
+            let stdout = output.stdout;
+            let stderr = output.stderr;
             panic!(
                 "createdb failed! stdout: {}\n\nstderr: {}",
                 String::from_utf8_lossy(&stdout),
