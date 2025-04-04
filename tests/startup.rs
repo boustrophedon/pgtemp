@@ -1,6 +1,8 @@
 //! Basic startup/shutdown tests
 
-use pgtemp::PgTempDB;
+use pgtemp::{PgTempDB, PgTempDBBuilder};
+use std::{io::Write, os::unix::fs::OpenOptionsExt};
+use tempfile::TempDir;
 
 #[test]
 /// We can bring up a temp db and its data directory is gone after dropping it.
@@ -83,4 +85,39 @@ fn test_tempdb_bin_path() {
         drop(f);
     }
     let _db = PgTempDB::builder().with_bin_path(&bindir).start();
+}
+
+#[test]
+fn test_slow_postgres_startup() {
+    let temp_dir = TempDir::new().expect("Failed to create temp dir");
+    let dir_path = temp_dir.path().to_owned();
+
+    for cmd in ["postgres", "createdb", "psql", "initdb"] {
+        let wrapper_pre_execute = if cmd == "postgres" {
+            "sleep 0.5"
+        } else {
+            "# No prefix"
+        };
+        let wrapper_binary = format!(
+            r#"#!/bin/bash
+            {wrapper_pre_execute}
+            exec {cmd} "$@"
+            "#
+        );
+
+        let wrapper_postgres_bin = dir_path.join(cmd);
+        let mut file = std::fs::OpenOptions::new()
+            .write(true)
+            .create(true)
+            .mode(0o755)
+            .open(&wrapper_postgres_bin)
+            .expect("Failed to create executable wrapper script");
+        file.write_all(wrapper_binary.as_bytes())
+            .expect("Failed to write script content");
+    }
+
+    let _db = PgTempDBBuilder::new()
+        .with_bin_path(dir_path)
+        .with_dbname("unique_db_name")
+        .start();
 }
