@@ -1,9 +1,13 @@
-use std::process::{Child, Command};
+use std::{
+    process::{Child, Command},
+    time::Duration,
+};
 use tempfile::TempDir;
 
 use crate::PgTempDBBuilder;
 
-const CREATEDB_MAX_TRIES: u32 = 5;
+const CREATEDB_MAX_TRIES: u32 = 10;
+const CREATEDB_RETRY_DELAY: Duration = Duration::from_millis(100);
 
 fn current_user_is_root() -> bool {
     unsafe { libc::getuid() == 0 }
@@ -127,6 +131,8 @@ pub fn run_db(temp_dir: &TempDir, mut builder: PgTempDBBuilder) -> Child {
         .spawn()
         .expect("Failed to start postgres. Is it installed and on your path?");
 
+    std::thread::sleep(CREATEDB_RETRY_DELAY);
+
     let user = builder.get_user();
     //let password = builder.get_password();
     let port = builder.get_port_or_set_random();
@@ -142,10 +148,10 @@ pub fn run_db(temp_dir: &TempDir, mut builder: PgTempDBBuilder) -> Child {
             .bin_path
             .as_ref()
             .map_or("createdb".into(), |p| p.join("createdb"));
-        let mut dbcmd = Command::new(createdb_path);
         let mut createdb_last_error_output = None;
 
         for _ in 0..CREATEDB_MAX_TRIES {
+            let mut dbcmd = Command::new(createdb_path.clone());
             dbcmd
                 .args(["--host", "localhost"])
                 .args(["--port", &port.to_string()])
@@ -164,6 +170,7 @@ pub fn run_db(temp_dir: &TempDir, mut builder: PgTempDBBuilder) -> Child {
                 break;
             }
             createdb_last_error_output = Some(output);
+            std::thread::sleep(CREATEDB_RETRY_DELAY);
         }
 
         if let Some(output) = createdb_last_error_output {
