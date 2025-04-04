@@ -93,17 +93,9 @@ fn test_slow_postgres_startup() {
     let dir_path = temp_dir.path().to_owned();
 
     for cmd in ["postgres", "createdb", "psql", "initdb"] {
-        let wrapper_pre_execute = if cmd == "postgres" {
-            "sleep 0.5"
-        } else {
-            "# No prefix"
-        };
-        let wrapper_binary = format!(
-            r#"#!/bin/bash
-            {wrapper_pre_execute}
-            exec {cmd} "$@"
-            "#
-        );
+        let sleep_cmd = if cmd == "postgres" { "sleep 0.5" } else { "" };
+        let exec_cmd = format!("exec {cmd} \"$@\"");
+        let wrapper_binary = vec!["#!/bin/bash", sleep_cmd, exec_cmd.as_str()].join("\n");
 
         let wrapper_postgres_bin = dir_path.join(cmd);
         let mut file = std::fs::OpenOptions::new()
