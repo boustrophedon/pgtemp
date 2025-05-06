@@ -286,8 +286,8 @@ pub struct PgTempDBBuilder {
     pub load_path: Option<PathBuf>,
     /// Other server configuration data to be set in `postgresql.conf` via `initdb -c`
     pub server_configs: HashMap<String, String>,
-    /// Configuration parameters to be passed to `initdb` command
-    pub initdb_configs: HashMap<String, String>,
+    /// Direct arguments to pass to the `initdb` binary (e.g. --encoding=UTF8), distinct from postgres configs (-c)
+    pub initdb_args: HashMap<String, String>,
     /// Prefix PostgreSQL binary names (`initdb`, `createdb`, and `postgres`) with this path, instead of searching $PATH
     pub bin_path: Option<PathBuf>,
 }
@@ -374,11 +374,12 @@ impl PgTempDBBuilder {
         self
     }
 
-    /// Set an arbitrary initdb configuration parameter that will be passed to the
-    /// initdb command during database initialization.
+    /// Set an arbitrary argument that will be passed directly to the initdb binary during database
+    /// initialization. These are direct arguments like --encoding or --locale, not configuration
+    /// parameters that get written to postgresql.conf (use with_config_param for those).
     #[must_use]
-    pub fn with_initdb_param(mut self, key: &str, value: &str) -> Self {
-        let _old = self.initdb_configs.insert(key.into(), value.into());
+    pub fn with_initdb_arg(mut self, key: &str, value: &str) -> Self {
+        let _old = self.initdb_args.insert(key.into(), value.into());
         self
     }
 

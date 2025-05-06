@@ -53,8 +53,8 @@ async fn buider_setters() {
         .with_port(9954)
         .with_dbname("testdb1")
         .with_config_param("max_connections", "777")
-        .with_initdb_param("encoding", "UTF8")
-        .with_initdb_param("locale", "C");
+        .with_initdb_arg("encoding", "UTF8")
+        .with_initdb_arg("locale", "C");
     assert_eq!(db.get_user(), "testuser");
     assert_eq!(db.get_password(), "potato");
     assert_eq!(db.get_port_or_set_random(), 9954);

@@ -73,7 +73,7 @@ pub fn init_db(builder: &mut PgTempDBBuilder) -> TempDir {
         .args(["--pwfile", pwfile_str]);
 
     // Apply any custom initdb configurations
-    for (key, val) in &builder.initdb_configs {
+    for (key, val) in &builder.initdb_args {
         // Don't add -- prefix if the key already starts with - or --
         let formatted_key = if key.starts_with('-') {
             key.to_string()
