@@ -102,18 +102,18 @@ async fn buider_setters() {
     assert_eq!(encoding, "UTF8");
 
     // check the locale settings
-    let row = sqlx::query("SHOW lc_collate")
+    let row = sqlx::query("SHOW LC_COLLATE")
         .fetch_one(&mut conn)
         .await
-        .expect("failed to execute lc_collate query");
+        .expect("failed to execute LC_COLLATE query");
 
     let lc_collate: &str = row.get(0);
     assert_eq!(lc_collate, "C");
 
-    let row = sqlx::query("SHOW lc_ctype")
+    let row = sqlx::query("SHOW LC_CTYPE")
         .fetch_one(&mut conn)
         .await
-        .expect("failed to execute lc_ctype query");
+        .expect("failed to execute LC_CTYPE query");
 
     let lc_ctype: &str = row.get(0);
     assert_eq!(lc_ctype, "C");
