@@ -72,6 +72,17 @@ pub fn init_db(builder: &mut PgTempDBBuilder) -> TempDir {
         .args(["--username", &user])
         .args(["--pwfile", pwfile_str]);
 
+    // Apply any custom initdb configurations
+    for (key, val) in &builder.initdb_args {
+        // Don't add -- prefix if the key already starts with - or --
+        let formatted_key = if key.starts_with('-') {
+            key.to_string()
+        } else {
+            format!("--{}", key)
+        };
+        cmd.args([formatted_key.as_str(), val]);
+    }
+
     // TODO: supply postgres install location in builder struct
     let initdb_output = cmd
         .output()
