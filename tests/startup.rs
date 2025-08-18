@@ -1,7 +1,12 @@
 //! Basic startup/shutdown tests
 
-use pgtemp::{PgTempDB, PgTempDBBuilder};
+use pgtemp::{PgTempDB};
+
+#[cfg(unix)]
+use pgtemp::PgTempDBBuilder;
+#[cfg(unix)]
 use std::{io::Write, os::unix::fs::OpenOptionsExt};
+#[cfg(unix)]
 use tempfile::TempDir;
 
 #[test]
@@ -67,6 +72,7 @@ fn test_tempdb_bringup_shutdown_persist() {
 
 #[test]
 #[should_panic(expected = "this is not initdb")]
+#[cfg(unix)]
 /// Start a database by specifying the bin_path
 fn test_tempdb_bin_path() {
     use std::io::Write;
@@ -88,6 +94,7 @@ fn test_tempdb_bin_path() {
 }
 
 #[test]
+#[cfg(unix)]
 fn test_slow_postgres_startup() {
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
     let dir_path = temp_dir.path().to_owned();

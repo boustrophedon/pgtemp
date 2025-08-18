@@ -157,10 +157,16 @@ impl PgTempDB {
             self.dump_database(path);
         }
 
-        let postgres_process = self
+        #[cfg(unix)]
+        let postgres_process: Child;
+        #[cfg(windows)]
+        let mut postgres_process: Child;
+
+        postgres_process = self
             .postgres_process
             .take()
             .expect("shutdown with no postgres process");
+        
         let temp_dir = self.temp_dir.take().unwrap();
 
         // fast (not graceful) shutdown via SIGINT
@@ -173,7 +179,16 @@ impl PgTempDB {
         // the postgres server says "we're still connected to a client, can't shut down yet" and we
         // have a deadlock.
         #[allow(clippy::cast_possible_wrap)]
-        let _ret = unsafe { libc::kill(postgres_process.id() as i32, libc::SIGINT) };
+        #[cfg(unix)]
+        {
+            unsafe { libc::kill(postgres_process.id() as i32, libc::SIGINT); }
+        }
+        #[cfg(windows)]
+        {
+            postgres_process.kill()
+                .expect("failed to kill postgress process");
+        }
+
         let _output = postgres_process
             .wait_with_output()
             .expect("postgres server failed to exit cleanly");

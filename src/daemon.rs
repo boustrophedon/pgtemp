@@ -2,9 +2,8 @@ use crate::{PgTempDB, PgTempDBBuilder};
 
 use std::net::SocketAddr;
 
-use tokio::io::AsyncWriteExt;
+use tokio::io::{self, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream};
-use tokio::signal::unix::{signal, SignalKind};
 
 #[cfg(feature = "cli")]
 /// Contains the clap args struct
@@ -144,7 +143,7 @@ impl PgTempDaemon {
 
     /// Start the daemon, listening for either TCP connections on the configured port. The server
     /// shuts down when sent a SIGINT (e.g. via ctrl-C).
-    pub async fn start(mut self) {
+    pub async fn start(self) {
         let uri = self.conn_uri();
         if self.single_mode {
             println!("starting pgtemp server in single mode at {}", uri);
@@ -155,44 +154,72 @@ impl PgTempDaemon {
         let listener = TcpListener::bind(("127.0.0.1", self.port))
             .await
             .expect("failed to bind to daemon port");
+        self.listen(listener).await
+    }
+
+    /// Main daemon listening loop for unix
+    #[cfg(unix)]
+    async fn listen(mut self, listener: TcpListener) {
+        use tokio::signal::unix::{signal, SignalKind};
+
         let mut sig = signal(SignalKind::interrupt()).expect("failed to hook to interrupt signal");
         loop {
             tokio::select! {
-                res = listener.accept() => {
-                    if let Ok((client_conn, client_addr)) = res {
-                        client_conn.set_nodelay(true).expect("failed to set nodelay on client connection");
-                        let db: Option<PgTempDB>;
-                        let db_port: u16;
-                        if self.single_mode {
-                            db = None;
-                            db_port = self.dbs[0].db_port();
-                        }
-                        else {
-                            let take_db = self.dbs.pop().unwrap();
-                            db_port = take_db.db_port();
-                            db = Some(take_db);
-                        }
-                        let db_conn = TcpStream::connect(("127.0.0.1", db_port))
-                            .await
-                            .expect("failed to connect to postgres server");
-                        db_conn
-                            .set_nodelay(true)
-                            .expect("failed to set nodelay on db connection");
-                        tokio::spawn(async move { proxy_connection(db, db_conn, client_conn, client_addr).await });
-                        // preallocate a new db after one is used
-                        if self.dbs.is_empty() && !self.single_mode {
-                            self.allocate_db().await;
-                        }
-                    }
-                    else {
-                        println!("idk when this errs");
-                    }
-                }
+                res = listener.accept() => self.on_listener_accept(res).await,
                 _sig_event = sig.recv() => {
                     println!("got interrupt, exiting");
                     break;
                 }
             }
+        }
+    }
+
+    /// Main daemon listening loop for windows
+    #[cfg(windows)]
+    async fn listen(mut self, listener: TcpListener) {
+        let mut sig = tokio::signal::windows::ctrl_c().expect("failed to hook windows interrupt signal");
+        loop {
+            tokio::select! {
+                res = listener.accept() => self.on_listener_accept(res).await,
+                _sig_event = sig.recv() => {
+                    println!("got interrupt, exiting");
+                    break;
+                }
+            }
+        }
+    }
+
+    /// Called when a connection is accepted from a TcpListener.
+    async fn on_listener_accept(&mut self, result: io::Result<(TcpStream, SocketAddr)>) {
+        if let Ok((client_conn, client_addr)) = result {
+            client_conn
+                .set_nodelay(true)
+                .expect("failed to set nodelay on client connection");
+            let db: Option<PgTempDB>;
+            let db_port: u16;
+            if self.single_mode {
+                db = None;
+                db_port = self.dbs[0].db_port();
+            } else {
+                let take_db = self.dbs.pop().unwrap();
+                db_port = take_db.db_port();
+                db = Some(take_db);
+            }
+            let db_conn = TcpStream::connect(("127.0.0.1", db_port))
+                .await
+                .expect("failed to connect to postgres server");
+            db_conn
+                .set_nodelay(true)
+                .expect("failed to set nodelay on db connection");
+            tokio::spawn(
+                async move { proxy_connection(db, db_conn, client_conn, client_addr).await },
+            );
+            // preallocate a new db after one is used
+            if self.dbs.is_empty() && !self.single_mode {
+                self.allocate_db().await;
+            }
+        } else {
+            println!("idk when this errs");
         }
     }
 }

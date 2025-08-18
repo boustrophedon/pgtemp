@@ -9,8 +9,13 @@ use crate::PgTempDBBuilder;
 const CREATEDB_MAX_TRIES: u32 = 10;
 const CREATEDB_RETRY_DELAY: Duration = Duration::from_millis(100);
 
+#[cfg(unix)]
 fn current_user_is_root() -> bool {
     unsafe { libc::getuid() == 0 }
+}
+#[cfg(target_os = "windows")]
+fn current_user_is_root() -> bool {
+    false
 }
 
 /// Execute the `initdb` binary with the parameters configured in PgTempDBBuilder.
