@@ -24,6 +24,7 @@ jobs:
         os: [ubuntu-latest, windows-latest]
     steps:
       - name: Install postgres
+        shell: bash
         run: |
           if [ "${{ matrix.os }}" = "ubuntu-latest" ]; then
             sudo apt-get install postgresql postgresql-client
@@ -31,13 +32,16 @@ jobs:
             winget install PostgreSQL.PostgreSQL.16
             winget install GnuWin32.Make
           fi
+
       - name: Update path
+        shell: bash
         run: |
           if [ "${{ matrix.os }}" = "ubuntu-latest" ]; then
             find /usr/lib/postgresql/ -type d -name "bin" >> $GITHUB_PATH
           else
             echo todo
           fi
+          
       - name: Checkout
         uses: actions/checkout@v4
       - name: Run tests
