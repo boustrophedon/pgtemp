@@ -34,6 +34,7 @@ jobs:
           PSQL_BIN_PATH: C:\Program Files\PostgreSQL\17\bin
         run: |
           $env:PSQL_BIN_PATH | Add-Content -Path $env:GITHUB_PATH
+          initdb
 
       - name: Checkout
         uses: actions/checkout@v4
@@ -41,7 +42,7 @@ jobs:
         run: make test-ci
 
   test-unix:
-    name: Unit Tests
+    name: Unix Unit Tests
     runs-on: ubuntu-latest
     steps:
       - name: Install postgres
