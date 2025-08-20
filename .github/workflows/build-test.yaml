@@ -39,6 +39,7 @@ jobs:
           if [ "${{ matrix.os }}" = "ubuntu-latest" ]; then
             find /usr/lib/postgresql/ -type d -name "bin" >> $GITHUB_PATH
           else
+            initdb
             echo todo
           fi
 
