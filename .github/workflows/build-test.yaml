@@ -38,8 +38,8 @@ jobs:
           if [ "${{ matrix.os }}" = "ubuntu-latest" ]; then
             find /usr/lib/postgresql/ -type d -name "bin" >> $GITHUB_PATH
           else
-            ls "C:\Program Files\PostgreSQL\17\bin"
-            echo todo
+            C:\Program Files\PostgreSQL\17\bin >> $GITHUB_PATH
+            initdb
           fi
 
       - name: Checkout
