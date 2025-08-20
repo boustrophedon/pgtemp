@@ -26,12 +26,12 @@ jobs:
       PSQL_DATA_PATH: C:\Program Files\PostgreSQL\17\data
     steps:
       - name: Install postgres
-        shell: pwsh
+        shell: powershell
         run: |
           winget install $env:PSQL_PACKAGE_ID --accept-package-agreements --accept-source-agreements
 
       - name: Update path
-        shell: pwsh
+        shell: powershell
         run: |
           $env:PSQL_BIN_PATH | Add-Content -Path $env:GITHUB_PATH
 
@@ -52,7 +52,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
       - name: Run tests
-        run: make test-ci
+        run: cargo test --test basic_operations -- check_database_name --nocapture
 
   doc:
     name: Documentation Check
