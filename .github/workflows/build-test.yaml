@@ -34,12 +34,13 @@ jobs:
           PSQL_BIN_PATH: C:\Program Files\PostgreSQL\17\bin
         run: |
           $env:PSQL_BIN_PATH | Add-Content -Path $env:GITHUB_PATH
-          initdb
 
       - name: Checkout
         uses: actions/checkout@v4
       - name: Run tests
-        run: make test-ci
+        run: |
+          initdb 
+          make test-ci
 
   test-unix:
     name: Unix Unit Tests
