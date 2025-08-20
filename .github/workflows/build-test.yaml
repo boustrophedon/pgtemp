@@ -21,7 +21,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest]
+        os: [ubuntu-latest, windows-2025]
     steps:
       - name: Install postgres
         shell: bash
@@ -41,7 +41,7 @@ jobs:
           else
             echo todo
           fi
-          
+
       - name: Checkout
         uses: actions/checkout@v4
       - name: Run tests
