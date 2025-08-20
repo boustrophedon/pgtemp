@@ -20,28 +20,32 @@ jobs:
   test-windows:
     name: Windows Unit Tests
     runs-on: windows-2025
+    env:
+      PSQL_PACKAGE_ID: PostgreSQL.PostgreSQL.17
+      PSQL_BIN_PATH: C:\Program Files\PostgreSQL\17\bin
+      PSQL_DATA_PATH: C:\Program Files\PostgreSQL\17\data
+      PSQL_SERVICE_NAME: postgresql-x64-17
     steps:
       - name: Install postgres
-        env:
-          PSQL_PACKAGE_ID: PostgreSQL.PostgreSQL.17
-          PSQL_SERVICE_NAME: postgresql-x64-17
         shell: pwsh
         run: |
           winget install $env:PSQL_PACKAGE_ID --accept-package-agreements --accept-source-agreements
-          Start-Service -Name $env:PSQL_SERVICE_NAME
 
       - name: Update path
         shell: pwsh
-        env:
-          PSQL_BIN_PATH: C:\Program Files\PostgreSQL\17\bin
         run: |
           $env:PSQL_BIN_PATH | Add-Content -Path $env:GITHUB_PATH
+
+      - name: Start postgres server
+        shell: pwsh
+        run: |
+          Start-Service -Name $env:PSQL_SERVICE_NAME
+          pg_ctl start -D $env:PSQL_DATA_PATH
 
       - name: Checkout
         uses: actions/checkout@v4
       - name: Run tests
         run: |
-          echo "$PATH"
           make test-ci
 
   test-unix:
