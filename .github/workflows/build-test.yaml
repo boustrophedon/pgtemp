@@ -38,7 +38,7 @@ jobs:
           if [ "${{ matrix.os }}" = "ubuntu-latest" ]; then
             find /usr/lib/postgresql/ -type d -name "bin" >> $GITHUB_PATH
           else
-            ls "%ProgramFiles%\PostgreSQL\17\bin"
+            ls "C:\Program Files\PostgreSQL\17\bin"
             echo todo
           fi
 
