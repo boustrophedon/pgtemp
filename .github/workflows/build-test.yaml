@@ -38,7 +38,7 @@ jobs:
       - name: Start postgres server
         shell: cmd
         run: |
-          pg_ctl start -D "%PSQL_DATA_PATH%"
+          cat "C:\Program Files\PostgreSQL\17\data\postgresql.conf"
 
       - name: Checkout
         uses: actions/checkout@v4
