@@ -37,10 +37,10 @@ jobs:
           $env:PSQL_BIN_PATH | Add-Content -Path $env:GITHUB_PATH
 
       - name: Start postgres server
-        shell: pwsh
+        shell: cmd
         run: |
-          Start-Service -Name $env:PSQL_SERVICE_NAME
-          pg_ctl start -D $env:PSQL_DATA_PATH
+          net start %PSQL_SERVICE_NAME%
+          pg_ctl start -D %PSQL_DATA_PATH%
 
       - name: Checkout
         uses: actions/checkout@v4
