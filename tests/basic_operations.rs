@@ -11,6 +11,9 @@ async fn check_database_name() {
     let db = PgTempDB::new();
     assert_eq!(db.db_name(), "postgres");
 
+    println!("{:?}", db.data_dir());
+    println!("{:?}", db.connection_string());
+
     let mut conn = PgConnection::connect(&db.connection_uri())
         .await
         .expect("failed to connect to db");

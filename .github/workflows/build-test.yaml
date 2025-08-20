@@ -35,11 +35,6 @@ jobs:
         run: |
           $env:PSQL_BIN_PATH | Add-Content -Path $env:GITHUB_PATH
 
-      - name: Start postgres server
-        shell: cmd
-        run: |
-          tasklist | FIND "postgres"
-
       - name: Checkout
         uses: actions/checkout@v4
       - name: Run tests
