@@ -19,21 +19,12 @@ jobs:
 
   test-windows:
     name: Windows Unit Tests
-    runs-on: windows-2025
-    env:
-      PSQL_PACKAGE_ID: PostgreSQL.PostgreSQL.17
-      PSQL_BIN_PATH: C:\Program Files\PostgreSQL\17\bin
-      PSQL_DATA_PATH: C:\Program Files\PostgreSQL\17\data
+    runs-on: windows-latest
     steps:
       - name: Install postgres
-        shell: powershell
-        run: |
-          winget install $env:PSQL_PACKAGE_ID --accept-package-agreements --accept-source-agreements
-
-      - name: Update path
-        shell: powershell
-        run: |
-          $env:PSQL_BIN_PATH | Add-Content -Path $env:GITHUB_PATH
+        uses: tj-actions/install-postgresql@v3
+        with:
+          postgresql-version: 17
 
       - name: Checkout
         uses: actions/checkout@v4

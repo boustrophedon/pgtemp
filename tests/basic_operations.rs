@@ -1,7 +1,5 @@
 //! Test basic functionality
 
-use std::process::Command;
-
 use pgtemp::{PgTempDB, PgTempDBBuilder};
 use sqlx::postgres::PgConnection;
 use sqlx::prelude::*;
@@ -15,7 +13,6 @@ async fn check_database_name() {
 
     println!("{:?}", db.data_dir());
     println!("{:?}", db.connection_string());
-    println!("{:?}", Command::new("ls").arg(db.data_dir()).output());
 
     let mut conn = PgConnection::connect(&db.connection_uri())
         .await
