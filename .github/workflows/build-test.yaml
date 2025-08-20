@@ -24,9 +24,11 @@ jobs:
       - name: Install postgres
         env:
           PSQL_PACKAGE_ID: PostgreSQL.PostgreSQL.17
+          PSQL_SERVICE_NAME: postgresql-x64-17
         shell: pwsh
         run: |
           winget install $env:PSQL_PACKAGE_ID --accept-package-agreements --accept-source-agreements
+          Start-Service -Name $env:PSQL_SERVICE_NAME
 
       - name: Update path
         shell: pwsh
@@ -39,7 +41,7 @@ jobs:
         uses: actions/checkout@v4
       - name: Run tests
         run: |
-          initdb 
+          echo "$PATH"
           make test-ci
 
   test-unix:
