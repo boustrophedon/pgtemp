@@ -29,8 +29,8 @@ jobs:
           if [ "${{ matrix.os }}" = "ubuntu-latest" ]; then
             sudo apt-get install postgresql postgresql-client
           else
-            winget install PostgreSQL.PostgreSQL.16
-            winget install GnuWin32.Make
+            winget install PostgreSQL.PostgreSQL.16 --accept-package-agreements --accept-source-agreements
+            winget install GnuWin32.Make --accept-package-agreements --accept-source-agreements
           fi
 
       - name: Update path
