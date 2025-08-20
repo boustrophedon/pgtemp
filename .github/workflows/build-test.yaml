@@ -18,12 +18,26 @@ jobs:
         run: make lint
   test:
     name: Unit Tests
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
     steps:
       - name: Install postgres
-        run: sudo apt-get install postgresql postgresql-client
+        run: |
+          if [ "${{ matrix.os }}" = "ubuntu-latest" ]; then
+            sudo apt-get install postgresql postgresql-client
+          else
+            winget install PostgreSQL.PostgreSQL.16
+            winget install GnuWin32.Make
+          fi
       - name: Update path
-        run: find /usr/lib/postgresql/ -type d -name "bin" >> $GITHUB_PATH
+        run: |
+          if [ "${{ matrix.os }}" = "ubuntu-latest" ]; then
+            find /usr/lib/postgresql/ -type d -name "bin" >> $GITHUB_PATH
+          else
+            echo todo
+          fi
       - name: Checkout
         uses: actions/checkout@v4
       - name: Run tests
