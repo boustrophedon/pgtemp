@@ -29,8 +29,7 @@ jobs:
           if [ "${{ matrix.os }}" = "ubuntu-latest" ]; then
             sudo apt-get install postgresql postgresql-client
           else
-            winget install PostgreSQL.PostgreSQL.16 --accept-package-agreements --accept-source-agreements
-            winget install GnuWin32.Make --accept-package-agreements --accept-source-agreements
+            winget install PostgreSQL.PostgreSQL.17 --accept-package-agreements --accept-source-agreements
           fi
 
       - name: Update path
@@ -39,7 +38,7 @@ jobs:
           if [ "${{ matrix.os }}" = "ubuntu-latest" ]; then
             find /usr/lib/postgresql/ -type d -name "bin" >> $GITHUB_PATH
           else
-            initdb
+            ls "%ProgramFiles%\PostgreSQL\17\bin"
             echo todo
           fi
 
