@@ -16,7 +16,7 @@ async fn check_database_name() {
 
     println!("{:?}", db.data_dir());
     println!("{:?}", db.connection_string());
-    for _ in 0..5 { 
+    for _ in 0..19 { 
         println!("{:?}", Command::new("pg_isready").arg(format!("-p {}", db.db_port())).output());
         tokio::time::sleep(Duration::from_secs(5)).await;
     }
