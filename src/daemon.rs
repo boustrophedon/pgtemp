@@ -177,7 +177,8 @@ impl PgTempDaemon {
     /// Main daemon listening loop for windows
     #[cfg(windows)]
     async fn listen(mut self, listener: TcpListener) {
-        let mut sig = tokio::signal::windows::ctrl_c().expect("failed to hook windows interrupt signal");
+        let mut sig =
+            tokio::signal::windows::ctrl_c().expect("failed to hook windows interrupt signal");
         loop {
             tokio::select! {
                 res = listener.accept() => self.on_listener_accept(res).await,

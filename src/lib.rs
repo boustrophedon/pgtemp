@@ -157,17 +157,10 @@ impl PgTempDB {
             self.dump_database(path);
         }
 
-        #[cfg(unix)]
-        let postgres_process: Child;
-        #[cfg(windows)]
-        let mut postgres_process: Child;
-
-        postgres_process = self
+        let postgres_process = self
             .postgres_process
             .take()
             .expect("shutdown with no postgres process");
-        
-        let temp_dir = self.temp_dir.take().unwrap();
 
         // fast (not graceful) shutdown via SIGINT
         // TODO: graceful shutdown via SIGTERM
@@ -181,17 +174,25 @@ impl PgTempDB {
         #[allow(clippy::cast_possible_wrap)]
         #[cfg(unix)]
         {
-            unsafe { libc::kill(postgres_process.id() as i32, libc::SIGINT); }
+            unsafe {
+                libc::kill(postgres_process.id() as i32, libc::SIGINT);
+            }
         }
         #[cfg(windows)]
         {
-            postgres_process.kill()
-                .expect("failed to kill postgress process");
+            std::process::Command::new("pg_ctl")
+                .arg("stop")
+                .arg("-D")
+                .arg(self.data_dir())
+                .output()
+                .expect("Failed to stop server with pg_ctl. Is it installed and on your path?");
         }
 
         let _output = postgres_process
             .wait_with_output()
             .expect("postgres server failed to exit cleanly");
+
+        let temp_dir = self.temp_dir.take().unwrap();
 
         if self.persist {
             // this prevents the dir from being deleted on drop
