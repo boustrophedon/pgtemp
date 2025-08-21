@@ -16,30 +16,32 @@ jobs:
         run: cargo fmt --all -- --check
       - name: Run cargo clippy
         run: make lint
-
-  test-windows:
-    name: Windows Unit Tests
-    runs-on: windows-latest
+  test:
+    name: Unit Tests
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-2025]
     steps:
       - name: Install postgres
-        uses: tj-actions/install-postgresql@v3
-        with:
-          postgresql-version: 17
-
-      - name: Checkout
-        uses: actions/checkout@v4
-      - name: Run tests
+        shell: bash
         run: |
-          cargo test --test basic_operations -- check_database_name --nocapture
+          if [ "${{ matrix.os }}" = "ubuntu-latest" ]; then
+            sudo apt-get install postgresql postgresql-client
+          else
+            winget install PostgreSQL.PostgreSQL.16 --accept-package-agreements --accept-source-agreements
+            winget install GnuWin32.Make --accept-package-agreements --accept-source-agreements
+          fi
 
-  test-unix:
-    name: Unix Unit Tests
-    runs-on: ubuntu-latest
-    steps:
-      - name: Install postgres
-        run: sudo apt-get install postgresql postgresql-client
       - name: Update path
-        run: find /usr/lib/postgresql/ -type d -name "bin" >> $GITHUB_PATH
+        shell: bash
+        run: |
+          if [ "${{ matrix.os }}" = "ubuntu-latest" ]; then
+            find /usr/lib/postgresql/ -type d -name "bin" >> $GITHUB_PATH
+          else
+            echo todo
+          fi
+
       - name: Checkout
         uses: actions/checkout@v4
       - name: Run tests
