@@ -192,11 +192,12 @@ pub fn run_db(temp_dir: &TempDir, mut builder: PgTempDBBuilder) -> Child {
         }
 
         pgcmd = get_command(pg_ctl_path);
-        pgcmd.arg("start")
+        pgcmd
+            .arg("start")
             .args(["-D", data_dir_str])
             .args(["-o", &pg_cmd_args.join(" ")]);
     }
-    
+
     // don't output postgres output to stdout/stderr
     pgcmd
         .stdout(std::process::Stdio::piped())
@@ -207,21 +208,26 @@ pub fn run_db(temp_dir: &TempDir, mut builder: PgTempDBBuilder) -> Child {
         .expect("Failed to start postgres. Is it installed and on your path?");
 
     // wait for db to be started
-    let db_ready_error = wait_for_db_ready(
-        &builder.bin_path,
-        port,
-        CREATEDB_MAX_TRIES,
-        CREATEDB_RETRY_DELAY,
-    );
-    if let Some(output) = db_ready_error {
-        let stdout = output.stdout;
-        let stderr = output.stderr;
-        panic!(
-            "db did not start! stdout: {}\n\nstderr: {}",
-            String::from_utf8_lossy(&stdout),
-            String::from_utf8_lossy(&stderr)
+    #[cfg(windows)]
+    {
+        let db_ready_error = wait_for_db_ready(
+            &builder.bin_path,
+            port,
+            CREATEDB_MAX_TRIES,
+            CREATEDB_RETRY_DELAY,
         );
+        if let Some(output) = db_ready_error {
+            let stdout = output.stdout;
+            let stderr = output.stderr;
+            panic!(
+                "db did not start! stdout: {}\n\nstderr: {}",
+                String::from_utf8_lossy(&stdout),
+                String::from_utf8_lossy(&stderr)
+            );
+        }
     }
+    #[cfg(unix)]
+    std::thread::sleep(CREATEDB_RETRY_DELAY);
 
     let user = builder.get_user();
     //let password = builder.get_password();

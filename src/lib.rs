@@ -37,6 +37,8 @@ pub struct PgTempDB {
     // See shutdown implementation for why these are options
     temp_dir: Option<TempDir>,
     postgres_process: Option<Child>,
+    /// Prefix PostgreSQL binary names (`initdb`, `createdb`, and `postgres`) with this path, instead of searching $PATH
+    bin_path: Option<PathBuf>,
 }
 
 impl PgTempDB {
@@ -49,6 +51,7 @@ impl PgTempDB {
         let persist = builder.persist_data_dir;
         let dump_path = builder.dump_path.clone();
         let load_path = builder.load_path.clone();
+        let bin_path = builder.bin_path.clone();
 
         let temp_dir = run_db::init_db(&mut builder);
         let postgres_process = Some(run_db::run_db(&temp_dir, builder));
@@ -63,6 +66,7 @@ impl PgTempDB {
             dump_path,
             temp_dir,
             postgres_process,
+            bin_path
         };
 
         if let Some(path) = load_path {
@@ -185,7 +189,12 @@ impl PgTempDB {
         {
             use std::process::Command;
 
-            Command::new("pg_ctl")
+            let pg_ctl_path = self
+                .bin_path
+                .as_ref()
+                .map_or("pg_ctl".into(), |p| p.join("pg_ctl"));
+
+            Command::new(pg_ctl_path)
                 .arg("stop")
                 .arg("-D")
                 .arg(data_dir)
