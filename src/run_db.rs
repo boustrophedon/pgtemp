@@ -111,6 +111,7 @@ pub fn init_db(builder: &mut PgTempDBBuilder) -> TempDir {
     temp_dir
 }
 
+#[cfg(windows)]
 /// waits for a db to be ready
 /// if the server never started, returns the last command output
 fn wait_for_db_ready(
