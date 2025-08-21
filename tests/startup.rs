@@ -1,6 +1,6 @@
 //! Basic startup/shutdown tests
 
-use pgtemp::{PgTempDB};
+use pgtemp::PgTempDB;
 
 #[cfg(unix)]
 use pgtemp::PgTempDBBuilder;

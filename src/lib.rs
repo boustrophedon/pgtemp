@@ -166,7 +166,7 @@ impl PgTempDB {
             .postgres_process
             .take()
             .expect("shutdown with no postgres process");
-        
+
         let temp_dir = self.temp_dir.take().unwrap();
 
         // fast (not graceful) shutdown via SIGINT
@@ -181,11 +181,14 @@ impl PgTempDB {
         #[allow(clippy::cast_possible_wrap)]
         #[cfg(unix)]
         {
-            unsafe { libc::kill(postgres_process.id() as i32, libc::SIGINT); }
+            unsafe {
+                libc::kill(postgres_process.id() as i32, libc::SIGINT);
+            }
         }
         #[cfg(windows)]
         {
-            postgres_process.kill()
+            postgres_process
+                .kill()
                 .expect("failed to kill postgress process");
         }
 
