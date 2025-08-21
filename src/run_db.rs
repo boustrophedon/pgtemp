@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::ffi::OsStr;
 use std::{
     path::PathBuf,
-    process::{Child, Command, Output},
+    process::{Child, Command},
     time::Duration,
 };
 use tempfile::TempDir;
@@ -120,7 +120,7 @@ fn wait_for_db_ready(
     port: u16,
     max_retries: u32,
     retry_delay: Duration,
-) -> Option<Output> {
+) -> Option<std::process::Output> {
     let mut isready_last_error_output = None;
     let isready_path = bin_path.map_or("pg_isready".into(), |p| p.join("pg_isready"));
 
