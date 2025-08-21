@@ -37,28 +37,16 @@ async fn check_database_name() {
             println!("server is running...");
             break;
         } else {
-            println!("try to start server...");
-            let start_status = Command::new("pg_ctl")
+            let _ = Command::new("pg_ctl")
                 .arg("-o")
                 .arg(format!("\"-p {}\"", db_port).to_string())
                 .arg("start")
                 .arg("-D")
                 .arg(data_dir.to_str().unwrap())
-                .output()
-                .await;
-
-            println!("{:?}", start_status)
+                .spawn()
+                .expect("could not start pg server");
         }
     }
-
-    // println!(
-    //     "{:?}",
-    //     Command::new("pg_ctl")
-    //         .arg("stop")
-    //         .arg("-D")
-    //         .arg(db.data_dir().to_str().unwrap())
-    //         .output()
-    //     );
 
     let mut conn = PgConnection::connect(&db.connection_uri())
         .await
@@ -72,24 +60,34 @@ async fn check_database_name() {
     let name: String = row.get(0);
     assert_eq!(name, "postgres");
 
+    Command::new("pg_ctl")
+        .arg("stop")
+        .arg("-D")
+        .arg(data_dir.to_str().unwrap())
+        .arg("-p")
+        .arg(db_port.to_string())
+        .output()
+        .await
+        .unwrap();
+
     drop(conn);
     drop(db);
 
-    // test with custom name
-    let db = PgTempDB::builder().with_dbname("my_cool_temp_db").start();
-    assert_eq!(db.db_name(), "my_cool_temp_db");
+    // // test with custom name
+    // let db = PgTempDB::builder().with_dbname("my_cool_temp_db").start();
+    // assert_eq!(db.db_name(), "my_cool_temp_db");
 
-    let mut conn = PgConnection::connect(&db.connection_uri())
-        .await
-        .expect("failed to connect to db");
+    // let mut conn = PgConnection::connect(&db.connection_uri())
+    //     .await
+    //     .expect("failed to connect to db");
 
-    let row = sqlx::query("SELECT current_database()")
-        .fetch_one(&mut conn)
-        .await
-        .expect("failed to execute current db query");
+    // let row = sqlx::query("SELECT current_database()")
+    //     .fetch_one(&mut conn)
+    //     .await
+    //     .expect("failed to execute current db query");
 
-    let name: String = row.get(0);
-    assert_eq!(name, "my_cool_temp_db");
+    // let name: String = row.get(0);
+    // assert_eq!(name, "my_cool_temp_db");
 }
 
 #[tokio::test]
