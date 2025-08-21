@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::ffi::OsStr;
 use std::{
     path::PathBuf,
@@ -115,15 +116,13 @@ pub fn init_db(builder: &mut PgTempDBBuilder) -> TempDir {
 /// waits for a db to be ready
 /// if the server never started, returns the last command output
 fn wait_for_db_ready(
-    bin_path: &Option<PathBuf>,
+    bin_path: Option<&PathBuf>,
     port: u16,
     max_retries: u32,
     retry_delay: Duration,
 ) -> Option<Output> {
     let mut isready_last_error_output = None;
-    let isready_path = bin_path
-        .as_ref()
-        .map_or("pg_isready".into(), |p| p.join("pg_isready"));
+    let isready_path = bin_path.map_or("pg_isready".into(), |p| p.join("pg_isready"));
 
     let mut server_status_cmd = Command::new(&isready_path);
     server_status_cmd.args(["-p", &port.to_string()]);
@@ -142,62 +141,73 @@ fn wait_for_db_ready(
     isready_last_error_output
 }
 
+#[cfg(unix)]
+fn get_run_db_cmd(
+    bin_path: Option<&PathBuf>,
+    data_dir_str: &str,
+    port: u16,
+    server_configs: &HashMap<String, String>,
+) -> Command {
+    let postgres_path = bin_path.map_or("postgres".into(), |p| p.join("postgres"));
+
+    let mut pgcmd = get_command(postgres_path);
+    pgcmd
+        .args(["-c", &format!("unix_socket_directories={}", data_dir_str)])
+        .args(["-c", &format!("port={port}")])
+        // https://www.postgresql.org/docs/current/non-durability.html
+        // https://wiki.postgresql.org/wiki/Tuning_Your_PostgreSQL_Server
+        .args(["-c", "fsync=off"])
+        .args(["-c", "synchronous_commit=off"])
+        .args(["-c", "full_page_writes=off"])
+        .args(["-c", "autovacuum=off"])
+        .args(["-D", data_dir_str]);
+    for (key, val) in server_configs {
+        pgcmd.args(["-c", &format!("{}={}", key, val)]);
+    }
+    pgcmd
+}
+#[cfg(windows)]
+fn get_run_db_cmd(
+    bin_path: Option<&PathBuf>,
+    data_dir_str: &str,
+    port: u16,
+    server_configs: &HashMap<String, String>,
+) -> Command {
+    let pg_ctl_path = bin_path.map_or("pg_ctl".into(), |p| p.join("pg_ctl"));
+
+    // build postgres command args
+    let mut pg_cmd_args = vec![
+        format!("-c unix_socket_directories={}", data_dir_str),
+        format!("-c port={}", port),
+        "-c fsync=off".into(),
+        "-c synchronous_commit=off".into(),
+        "-c full_page_writes=off".into(),
+        "-c autovacuum=off".into(),
+    ];
+    for (key, val) in server_configs {
+        pg_cmd_args.push(format!("-c {}={}", key, val));
+    }
+
+    let mut pgcmd = get_command(pg_ctl_path);
+    pgcmd
+        .arg("start")
+        .args(["-D", data_dir_str])
+        .args(["-o", &pg_cmd_args.join(" ")]);
+    pgcmd
+}
+
 pub fn run_db(temp_dir: &TempDir, mut builder: PgTempDBBuilder) -> Child {
     let data_dir = temp_dir.path().join("pg_data_dir");
     let data_dir_str = data_dir.to_str().unwrap();
     let port = builder.get_port_or_set_random();
 
     // postgres will not run as root, so try to run as postgres if we are root
-    let mut pgcmd: Command;
-
-    #[cfg(unix)]
-    {
-        let postgres_path = builder
-            .bin_path
-            .as_ref()
-            .map_or("postgres".into(), |p| p.join("postgres"));
-        pgcmd = get_command(postgres_path);
-
-        pgcmd
-            .args(["-c", &format!("unix_socket_directories={}", data_dir_str)])
-            .args(["-c", &format!("port={port}")])
-            // https://www.postgresql.org/docs/current/non-durability.html
-            // https://wiki.postgresql.org/wiki/Tuning_Your_PostgreSQL_Server
-            .args(["-c", "fsync=off"])
-            .args(["-c", "synchronous_commit=off"])
-            .args(["-c", "full_page_writes=off"])
-            .args(["-c", "autovacuum=off"])
-            .args(["-D", data_dir.to_str().unwrap()]);
-        for (key, val) in &builder.server_configs {
-            pgcmd.args(["-c", &format!("{}={}", key, val)]);
-        }
-    }
-    #[cfg(windows)]
-    {
-        let pg_ctl_path = builder
-            .bin_path
-            .as_ref()
-            .map_or("pg_ctl".into(), |p| p.join("pg_ctl"));
-
-        // build postgres command args
-        let mut pg_cmd_args = vec![
-            format!("-c unix_socket_directories={}", data_dir_str),
-            format!("-c port={}", port),
-            "-c fsync=off".into(),
-            "-c synchronous_commit=off".into(),
-            "-c full_page_writes=off".into(),
-            "-c autovacuum=off".into(),
-        ];
-        for (key, val) in &builder.server_configs {
-            pg_cmd_args.push(format!("-c {}={}", key, val));
-        }
-
-        pgcmd = get_command(pg_ctl_path);
-        pgcmd
-            .arg("start")
-            .args(["-D", data_dir_str])
-            .args(["-o", &pg_cmd_args.join(" ")]);
-    }
+    let mut pgcmd: Command = get_run_db_cmd(
+        builder.bin_path.as_ref(),
+        data_dir_str,
+        port,
+        &builder.server_configs,
+    );
 
     // don't output postgres output to stdout/stderr
     pgcmd
@@ -212,7 +222,7 @@ pub fn run_db(temp_dir: &TempDir, mut builder: PgTempDBBuilder) -> Child {
     #[cfg(windows)]
     {
         let db_ready_error = wait_for_db_ready(
-            &builder.bin_path,
+            builder.bin_path.as_ref(),
             port,
             CREATEDB_MAX_TRIES,
             CREATEDB_RETRY_DELAY,
