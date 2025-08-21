@@ -21,6 +21,10 @@ jobs:
     name: Windows Unit Tests
     runs-on: windows-latest
     steps:
+      - name: Install python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
       - name: Install postgres
         uses: tj-actions/install-postgresql@v3
         with:
