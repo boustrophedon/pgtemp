@@ -161,7 +161,6 @@ impl PgTempDB {
             .postgres_process
             .take()
             .expect("shutdown with no postgres process");
-        let temp_dir = self.temp_dir.take().unwrap();
 
         // fast (not graceful) shutdown via SIGINT
         // TODO: graceful shutdown via SIGTERM
@@ -173,10 +172,27 @@ impl PgTempDB {
         // the postgres server says "we're still connected to a client, can't shut down yet" and we
         // have a deadlock.
         #[allow(clippy::cast_possible_wrap)]
-        let _ret = unsafe { libc::kill(postgres_process.id() as i32, libc::SIGINT) };
+        #[cfg(unix)]
+        {
+            unsafe {
+                libc::kill(postgres_process.id() as i32, libc::SIGINT);
+            }
+        }
+        #[cfg(windows)]
+        {
+            std::process::Command::new("pg_ctl")
+                .arg("stop")
+                .arg("-D")
+                .arg(self.data_dir())
+                .output()
+                .expect("Failed to stop server with pg_ctl. Is it installed and on your path?");
+        }
+
         let _output = postgres_process
             .wait_with_output()
             .expect("postgres server failed to exit cleanly");
+
+        let temp_dir = self.temp_dir.take().unwrap();
 
         if self.persist {
             // this prevents the dir from being deleted on drop

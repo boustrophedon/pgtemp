@@ -1,4 +1,7 @@
+use std::collections::HashMap;
+use std::ffi::OsStr;
 use std::{
+    path::PathBuf,
     process::{Child, Command},
     time::Duration,
 };
@@ -9,8 +12,32 @@ use crate::PgTempDBBuilder;
 const CREATEDB_MAX_TRIES: u32 = 10;
 const CREATEDB_RETRY_DELAY: Duration = Duration::from_millis(100);
 
+#[cfg(unix)]
 fn current_user_is_root() -> bool {
     unsafe { libc::getuid() == 0 }
+}
+
+#[cfg(unix)]
+fn get_command<S>(program: S) -> Command
+where
+    S: AsRef<OsStr>,
+{
+    // postgres will not run as root, so try to run initdb as postgres user if we are root so that
+    // when running the server as the postgres user it can access the files
+    if current_user_is_root() {
+        let mut cmd = Command::new("sudo");
+        cmd.args(["-u", "postgres"]).arg(program);
+        cmd
+    } else {
+        Command::new(program)
+    }
+}
+#[cfg(windows)]
+fn get_command<S>(program: S) -> Command
+where
+    S: AsRef<OsStr>,
+{
+    Command::new(program)
 }
 
 /// Execute the `initdb` binary with the parameters configured in PgTempDBBuilder.
@@ -23,6 +50,7 @@ pub fn init_db(builder: &mut PgTempDBBuilder) -> TempDir {
         }
     };
 
+    #[cfg(unix)]
     // if current user is root, data dir etc need to be owned by postgres user
     if current_user_is_root() {
         // TODO: don't shell out to chown, get the userid of postgres and just call std::os
@@ -59,13 +87,7 @@ pub fn init_db(builder: &mut PgTempDBBuilder) -> TempDir {
 
     // postgres will not run as root, so try to run initdb as postgres user if we are root so that
     // when running the server as the postgres user it can access the files
-    let mut cmd: Command;
-    if current_user_is_root() {
-        cmd = Command::new("sudo");
-        cmd.args(["-u", "postgres"]).arg(initdb_path);
-    } else {
-        cmd = Command::new(initdb_path);
-    }
+    let mut cmd: Command = get_command(initdb_path);
 
     cmd.args(["-D", data_dir_str])
         .arg("-N") // no fsync, starts slightly faster
@@ -90,24 +112,45 @@ pub fn init_db(builder: &mut PgTempDBBuilder) -> TempDir {
     temp_dir
 }
 
-pub fn run_db(temp_dir: &TempDir, mut builder: PgTempDBBuilder) -> Child {
-    let data_dir = temp_dir.path().join("pg_data_dir");
-    let data_dir_str = data_dir.to_str().unwrap();
-    let port = builder.get_port_or_set_random();
+#[cfg(windows)]
+/// waits for a db to be ready
+/// if the server never started, returns the last command output
+fn wait_for_db_ready(
+    bin_path: Option<&PathBuf>,
+    port: u16,
+    max_retries: u32,
+    retry_delay: Duration,
+) -> Option<std::process::Output> {
+    let mut isready_last_error_output = None;
+    let isready_path = bin_path.map_or("pg_isready".into(), |p| p.join("pg_isready"));
 
-    // postgres will not run as root, so try to run as postgres if we are root
-    let postgres_path = builder
-        .bin_path
-        .as_ref()
-        .map_or("postgres".into(), |p| p.join("postgres"));
-    let mut pgcmd: Command;
-    if current_user_is_root() {
-        pgcmd = Command::new("sudo");
-        pgcmd.args(["-u", "postgres"]).arg(postgres_path);
-    } else {
-        pgcmd = Command::new(postgres_path);
-    };
+    let mut server_status_cmd = Command::new(&isready_path);
+    server_status_cmd.args(["-p", &port.to_string()]);
 
+    for _ in 0..max_retries {
+        let server_status = server_status_cmd.output().unwrap();
+
+        if server_status.status.success() {
+            isready_last_error_output = None;
+            break;
+        }
+        isready_last_error_output = Some(server_status);
+        std::thread::sleep(retry_delay);
+    }
+
+    isready_last_error_output
+}
+
+#[cfg(unix)]
+fn get_run_db_cmd(
+    bin_path: Option<&PathBuf>,
+    data_dir_str: &str,
+    port: u16,
+    server_configs: &HashMap<String, String>,
+) -> Command {
+    let postgres_path = bin_path.map_or("postgres".into(), |p| p.join("postgres"));
+
+    let mut pgcmd = get_command(postgres_path);
     pgcmd
         .args(["-c", &format!("unix_socket_directories={}", data_dir_str)])
         .args(["-c", &format!("port={port}")])
@@ -117,10 +160,54 @@ pub fn run_db(temp_dir: &TempDir, mut builder: PgTempDBBuilder) -> Child {
         .args(["-c", "synchronous_commit=off"])
         .args(["-c", "full_page_writes=off"])
         .args(["-c", "autovacuum=off"])
-        .args(["-D", data_dir.to_str().unwrap()]);
-    for (key, val) in &builder.server_configs {
+        .args(["-D", data_dir_str]);
+    for (key, val) in server_configs {
         pgcmd.args(["-c", &format!("{}={}", key, val)]);
     }
+    pgcmd
+}
+#[cfg(windows)]
+fn get_run_db_cmd(
+    bin_path: Option<&PathBuf>,
+    data_dir_str: &str,
+    port: u16,
+    server_configs: &HashMap<String, String>,
+) -> Command {
+    let pg_ctl_path = bin_path.map_or("pg_ctl".into(), |p| p.join("pg_ctl"));
+
+    // build postgres command args
+    let mut pg_cmd_args = vec![
+        format!("-c unix_socket_directories={}", data_dir_str),
+        format!("-c port={}", port),
+        "-c fsync=off".into(),
+        "-c synchronous_commit=off".into(),
+        "-c full_page_writes=off".into(),
+        "-c autovacuum=off".into(),
+    ];
+    for (key, val) in server_configs {
+        pg_cmd_args.push(format!("-c {}={}", key, val));
+    }
+
+    let mut pgcmd = get_command(pg_ctl_path);
+    pgcmd
+        .arg("start")
+        .args(["-D", data_dir_str])
+        .args(["-o", &pg_cmd_args.join(" ")]);
+    pgcmd
+}
+
+pub fn run_db(temp_dir: &TempDir, mut builder: PgTempDBBuilder) -> Child {
+    let data_dir = temp_dir.path().join("pg_data_dir");
+    let data_dir_str = data_dir.to_str().unwrap();
+    let port = builder.get_port_or_set_random();
+
+    // postgres will not run as root, so try to run as postgres if we are root
+    let mut pgcmd: Command = get_run_db_cmd(
+        builder.bin_path.as_ref(),
+        data_dir_str,
+        port,
+        &builder.server_configs,
+    );
 
     // don't output postgres output to stdout/stderr
     pgcmd
@@ -131,6 +218,26 @@ pub fn run_db(temp_dir: &TempDir, mut builder: PgTempDBBuilder) -> Child {
         .spawn()
         .expect("Failed to start postgres. Is it installed and on your path?");
 
+    // wait for db to be started
+    #[cfg(windows)]
+    {
+        let db_ready_error = wait_for_db_ready(
+            builder.bin_path.as_ref(),
+            port,
+            CREATEDB_MAX_TRIES,
+            CREATEDB_RETRY_DELAY,
+        );
+        if let Some(output) = db_ready_error {
+            let stdout = output.stdout;
+            let stderr = output.stderr;
+            panic!(
+                "db did not start! stdout: {}\n\nstderr: {}",
+                String::from_utf8_lossy(&stdout),
+                String::from_utf8_lossy(&stderr)
+            );
+        }
+    }
+    #[cfg(unix)]
     std::thread::sleep(CREATEDB_RETRY_DELAY);
 
     let user = builder.get_user();
