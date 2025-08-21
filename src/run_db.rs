@@ -1,4 +1,3 @@
-#[cfg(windows)]
 use std::ffi::OsStr;
 use std::{
     path::PathBuf, process::{Child, Command, Output}, time::Duration
