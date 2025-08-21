@@ -157,16 +157,12 @@ impl PgTempDB {
             self.dump_database(path);
         }
 
-        #[cfg(unix)]
-        let postgres_process: Child;
-        #[cfg(windows)]
-        let mut postgres_process: Child;
-
-        postgres_process = self
+        let postgres_process = self
             .postgres_process
             .take()
             .expect("shutdown with no postgres process");
 
+        let data_dir = self.data_dir();
         let temp_dir = self.temp_dir.take().unwrap();
 
         // fast (not graceful) shutdown via SIGINT
@@ -187,9 +183,14 @@ impl PgTempDB {
         }
         #[cfg(windows)]
         {
-            postgres_process
-                .kill()
-                .expect("failed to kill postgress process");
+            use std::process::Command;
+
+            Command::new("pg_ctl")
+                .arg("stop")
+                .arg("-D")
+                .arg(data_dir)
+                .output()
+                .expect("Failed to stop server with pg_ctl. Is it installed and on your path?");
         }
 
         let _output = postgres_process

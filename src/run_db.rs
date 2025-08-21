@@ -1,6 +1,5 @@
 use std::{
-    process::{Child, Command},
-    time::Duration,
+    env::args, process::{Child, Command}, time::Duration
 };
 use tempfile::TempDir;
 
@@ -18,8 +17,54 @@ fn current_user_is_root() -> bool {
     false
 }
 
-/// Execute the `initdb` binary with the parameters configured in PgTempDBBuilder.
 pub fn init_db(builder: &mut PgTempDBBuilder) -> TempDir {
+    let temp_dir = {
+        if let Some(base_dir) = builder.temp_dir_prefix.clone() {
+            TempDir::with_prefix_in("pgtemp-", base_dir).expect("failed to create tempdir")
+        } else {
+            TempDir::with_prefix("pgtemp-").expect("failed to create tempdir")
+        }
+    };
+
+    let data_dir = temp_dir.path().join("pg_data_dir");
+    let data_dir_str = data_dir.to_str().unwrap();
+
+    let user = builder.get_user();
+    let password = builder.get_password();
+
+    // write out password file for initdb
+    let pwfile = temp_dir.path().join("user_password.txt");
+    let pwfile_str = pwfile.to_str().unwrap();
+    std::fs::write(&pwfile, password).expect("failed to write password file");
+
+    let pg_ctl_path = builder
+        .bin_path
+        .as_ref()
+        .map_or("pg_ctl".into(), |p| p.join("pg_ctl"));
+
+    let initdb_output = Command::new(pg_ctl_path)
+        .arg("init")
+        .args(["-D", data_dir_str])
+        .arg("-o")
+        .arg(format!("-N --username {} --pwfile {}", user, pwfile_str))
+        .output()
+        .expect("Failed to start pg_ctl. Is it installed and on your path?");
+
+    if !initdb_output.status.success() {
+        let stdout = initdb_output.stdout;
+        let stderr = initdb_output.stderr;
+        panic!(
+            "initdb failed! stdout: {}\n\nstderr: {}",
+            String::from_utf8_lossy(&stdout),
+            String::from_utf8_lossy(&stderr)
+        );
+    }
+
+    temp_dir
+}
+
+/// Execute the `initdb` binary with the parameters configured in PgTempDBBuilder.
+pub fn unix_init_db(builder: &mut PgTempDBBuilder) -> TempDir {
     let temp_dir = {
         if let Some(base_dir) = builder.temp_dir_prefix.clone() {
             TempDir::with_prefix_in("pgtemp-", base_dir).expect("failed to create tempdir")
@@ -96,6 +141,98 @@ pub fn init_db(builder: &mut PgTempDBBuilder) -> TempDir {
 }
 
 pub fn run_db(temp_dir: &TempDir, mut builder: PgTempDBBuilder) -> Child {
+    let data_dir = temp_dir.path().join("pg_data_dir");
+    let data_dir_str = data_dir.to_str().unwrap();
+    let port = builder.get_port_or_set_random();
+
+    // postgres will not run as root, so try to run as postgres if we are root
+    let pg_ctl_path = builder
+        .bin_path
+        .as_ref()
+        .map_or("pg_ctl".into(), |p| p.join("pg_ctl"));
+
+    // build postgres command args
+    let mut pg_cmd_args = vec![
+        format!("-c unix_socket_directories={}", data_dir_str),
+        format!("-c port={}", port),
+        "-c fsync=off".into(),
+        "-c synchronous_commit=off".into(),
+        "-c full_page_writes=off".into(),
+        "-c autovacuum=off".into(),
+    ];
+    for (key, val) in &builder.server_configs {
+        pg_cmd_args.push(format!("-c {}={}", key, val));
+    }
+
+    let postgres_server_process = Command::new(pg_ctl_path)
+        .arg("start")
+        .args(["-D", data_dir_str])
+        .args([
+            "-o",
+            &pg_cmd_args.join(" ")
+        ])
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped())
+        .spawn()
+        .expect("Failed to start postgres. Is it installed and on your path?");
+
+    std::thread::sleep(CREATEDB_RETRY_DELAY);
+
+    let user = builder.get_user();
+    //let password = builder.get_password();
+    let port = builder.get_port_or_set_random();
+    let dbname = builder.get_dbname();
+
+    if dbname != "postgres" {
+        // TODO: don't use createdb, connect directly to the db and run CREATE DATABASE. removes
+        // dependency on OS package which is often separate from postgres server package (at
+        // expense of adding Cargo dependency)
+        //
+        // alternatively just use psql
+        let createdb_path = builder
+            .bin_path
+            .as_ref()
+            .map_or("createdb".into(), |p| p.join("createdb"));
+        let mut createdb_last_error_output = None;
+
+        for _ in 0..CREATEDB_MAX_TRIES {
+            let mut dbcmd = Command::new(createdb_path.clone());
+            dbcmd
+                .args(["--host", "localhost"])
+                .args(["--port", &port.to_string()])
+                .args(["--username", &user])
+                // TODO: use template in pgtemp daemon single-cluster mode?
+                //.args(["--template", "..."]
+                // TODO: since we trust local users by default we don't actually
+                // need the password but we should provide it anyway since we
+                // provide it everywhere else
+                .arg("--no-password")
+                .arg(&dbname);
+
+            let output = dbcmd.output().expect("Failed to start createdb. Is it installed and on your path? It's typically part of the postgres-libs or postgres-client package.");
+            if output.status.success() {
+                createdb_last_error_output = None;
+                break;
+            }
+            createdb_last_error_output = Some(output);
+            std::thread::sleep(CREATEDB_RETRY_DELAY);
+        }
+
+        if let Some(output) = createdb_last_error_output {
+            let stdout = output.stdout;
+            let stderr = output.stderr;
+            panic!(
+                "createdb failed! stdout: {}\n\nstderr: {}",
+                String::from_utf8_lossy(&stdout),
+                String::from_utf8_lossy(&stderr)
+            );
+        }
+    }
+
+    postgres_server_process
+}
+
+pub fn unix_run_db(temp_dir: &TempDir, mut builder: PgTempDBBuilder) -> Child {
     let data_dir = temp_dir.path().join("pg_data_dir");
     let data_dir_str = data_dir.to_str().unwrap();
     let port = builder.get_port_or_set_random();
