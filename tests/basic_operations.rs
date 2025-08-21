@@ -1,11 +1,12 @@
 //! Test basic functionality
 
-use std::process::Command;
+use std::process::{ExitStatus};
 use std::time::Duration;
 
 use pgtemp::{PgTempDB, PgTempDBBuilder};
 use sqlx::postgres::PgConnection;
 use sqlx::prelude::*;
+use tokio::process::Command;
 
 #[tokio::test]
 /// check database name is correct
@@ -14,12 +15,50 @@ async fn check_database_name() {
     let db = PgTempDB::new();
     assert_eq!(db.db_name(), "postgres");
 
-    println!("{:?}", db.data_dir());
+    let data_dir = db.data_dir();
+    let db_port = db.db_port();
+
+    println!("{:?}", data_dir);
     println!("{:?}", db.connection_string());
-    for _ in 0..19 { 
-        println!("{:?}", Command::new("pg_isready").arg(format!("-p {}", db.db_port())).output());
-        tokio::time::sleep(Duration::from_secs(5)).await;
+    println!(
+        "folder exists: {}",
+        tokio::fs::try_exists(db.data_dir()).await.unwrap()
+    );
+
+    for _ in 0..5 {
+        let server_status = Command::new("pg_isready")
+            .arg("-p")
+            .arg(db_port.to_string())
+            .output()
+            .await
+            .unwrap();
+
+        if server_status.status.success() {
+            println!("server is running...");
+            break;
+        } else {
+            println!("try to start server...");
+            let start_status = Command::new("pg_ctl")
+                .arg("-o")
+                .arg(format!("\"-p {}\"", db_port).to_string())
+                .arg("start")
+                .arg("-D")
+                .arg(data_dir.to_str().unwrap())
+                .output()
+                .await;
+
+            println!("{:?}", start_status)
+        }
     }
+
+    // println!(
+    //     "{:?}",
+    //     Command::new("pg_ctl")
+    //         .arg("stop")
+    //         .arg("-D")
+    //         .arg(db.data_dir().to_str().unwrap())
+    //         .output()
+    //     );
 
     let mut conn = PgConnection::connect(&db.connection_uri())
         .await
