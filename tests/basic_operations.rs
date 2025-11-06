@@ -52,7 +52,9 @@ async fn buider_setters() {
         .with_password("potato")
         .with_port(9954)
         .with_dbname("testdb1")
-        .with_config_param("max_connections", "777");
+        .with_config_param("max_connections", "777")
+        .with_initdb_arg("encoding", "UTF8")
+        .with_initdb_arg("locale", "C");
     assert_eq!(db.get_user(), "testuser");
     assert_eq!(db.get_password(), "potato");
     assert_eq!(db.get_port_or_set_random(), 9954);
@@ -89,6 +91,32 @@ async fn buider_setters() {
 
     let name: &str = row.get(0);
     assert_eq!(name, "777");
+
+    // check initdb param setting as well
+    let row = sqlx::query("SHOW server_encoding")
+        .fetch_one(&mut conn)
+        .await
+        .expect("failed to execute server_encoding query");
+
+    let encoding: &str = row.get(0);
+    assert_eq!(encoding, "UTF8");
+
+    // check the locale settings
+    let row = sqlx::query("SHOW LC_COLLATE")
+        .fetch_one(&mut conn)
+        .await
+        .expect("failed to execute LC_COLLATE query");
+
+    let lc_collate: &str = row.get(0);
+    assert_eq!(lc_collate, "C");
+
+    let row = sqlx::query("SHOW LC_CTYPE")
+        .fetch_one(&mut conn)
+        .await
+        .expect("failed to execute LC_CTYPE query");
+
+    let lc_ctype: &str = row.get(0);
+    assert_eq!(lc_ctype, "C");
 }
 
 #[tokio::test]
