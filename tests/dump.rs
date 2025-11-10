@@ -1,5 +1,7 @@
 //! Tests for the dump and restore functionality
 
+use std::io::Write;
+
 use pgtemp::PgTempDB;
 use sqlx::postgres::PgConnection;
 use sqlx::prelude::*;
@@ -74,4 +76,23 @@ async fn dump_and_restore() {
 
     assert_eq!(id, 10);
     assert_eq!(name, "example name 9");
+}
+
+#[tokio::test]
+/// make sure that we correctly error on bad database dumps.
+#[should_panic(expected = "syntax error at or near \\\"INVALID\\")]
+async fn panic_on_load_error() {
+    let temp = tempfile::tempdir().unwrap();
+    let db_dump_path = temp.path().join("dump.sql");
+
+    // Create some bad database dumps
+    let mut f = std::fs::File::create(&db_dump_path).unwrap();
+    f.write_all(b"INVALID SQL").unwrap();
+    f.flush().expect("Failed to flush file");
+
+    // Try to load it (it should fail)
+    PgTempDB::builder()
+        .load_database(&db_dump_path)
+        .start_async()
+        .await;
 }
