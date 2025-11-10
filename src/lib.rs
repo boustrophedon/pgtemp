@@ -116,7 +116,13 @@ impl PgTempDB {
 
         let load_output = std::process::Command::new("psql")
             .arg(self.connection_uri())
-            .args(["--file", path_str])
+            .args([
+                "--file",
+                path_str,
+                "--set",
+                "ON_ERROR_STOP=1",
+                "--single-transaction",
+            ])
             .output()
             .expect("failed to start psql. Is it installed and on your path?");
 
