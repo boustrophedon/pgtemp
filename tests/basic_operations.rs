@@ -45,7 +45,7 @@ async fn check_database_name() {
 
 #[tokio::test]
 /// check all setters work
-async fn buider_setters() {
+async fn builder_setters() {
     // test default name
     let mut db = PgTempDB::builder()
         .with_username("testuser")
@@ -102,7 +102,7 @@ async fn buider_setters() {
     assert_eq!(encoding, "UTF8");
 
     // check the locale settings
-    let row = sqlx::query("SHOW LC_COLLATE")
+    let row = sqlx::query("SELECT datcollate from pg_database")
         .fetch_one(&mut conn)
         .await
         .expect("failed to execute LC_COLLATE query");
@@ -110,7 +110,7 @@ async fn buider_setters() {
     let lc_collate: &str = row.get(0);
     assert_eq!(lc_collate, "C");
 
-    let row = sqlx::query("SHOW LC_CTYPE")
+    let row = sqlx::query("SELECT datctype from pg_database")
         .fetch_one(&mut conn)
         .await
         .expect("failed to execute LC_CTYPE query");
