@@ -9,10 +9,14 @@ test:
 	cargo test --tests --examples --all-features
 
 # Run all tests with and without all features
-test-ci:
+test-ci-unix:
 	cargo test --tests --examples --no-default-features
 	cargo test --tests --examples --all-features
 	make -C examples/python-sqlalchemy test-ci
+
+test-ci-windows:
+	cargo test --tests --examples --no-default-features
+	cargo test --tests --examples --all-features
 
 # Run clippy
 lint:

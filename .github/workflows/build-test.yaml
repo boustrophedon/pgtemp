@@ -16,8 +16,22 @@ jobs:
         run: cargo fmt --all -- --check
       - name: Run cargo clippy
         run: make lint
-  test:
-    name: Unit Tests
+
+  test-windows:
+    name: Windows Unit Tests
+    runs-on: windows-latest
+    steps:
+      - name: Install postgres
+        uses: tj-actions/install-postgresql@v3
+        with:
+          postgresql-version: 17
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Run tests
+        run: make test-ci-windows
+
+  test-unix:
+    name: Unix Unit Tests
     runs-on: ubuntu-latest
     steps:
       - name: Install postgres
@@ -27,7 +41,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
       - name: Run tests
-        run: make test-ci
+        run: make test-ci-unix
 
   doc:
     name: Documentation Check
