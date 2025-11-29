@@ -169,6 +169,7 @@ impl PgTempDB {
             .expect("shutdown with no postgres process");
         let temp_dir = self.temp_dir.take().unwrap();
 
+        println!("shutting down postgres process {} on port {}", postgres_process.id(), self.dbport);
         // fast (not graceful) shutdown via SIGINT
         // TODO: graceful shutdown via SIGTERM
         // was having issues with using graceful shutdown by default and some tests/examples using
@@ -179,7 +180,7 @@ impl PgTempDB {
         // the postgres server says "we're still connected to a client, can't shut down yet" and we
         // have a deadlock.
         #[allow(clippy::cast_possible_wrap)]
-        let _ret = unsafe { libc::kill(postgres_process.id() as i32, libc::SIGINT) };
+        let _ret = unsafe { libc::kill(postgres_process.id() as i32, libc::SIGQUIT) };
         let _output = postgres_process
             .wait_with_output()
             .expect("postgres server failed to exit cleanly");
