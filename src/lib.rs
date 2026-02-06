@@ -186,7 +186,7 @@ impl PgTempDB {
 
         if self.persist {
             // this prevents the dir from being deleted on drop
-            let _path = temp_dir.into_path();
+            let _path = temp_dir.keep();
         } else {
             // if we just used the default drop impl, errors would not be surfaced
             temp_dir.close().expect("failed to clean up temp directory");
@@ -310,7 +310,7 @@ impl PgTempDBBuilder {
         let mut builder = PgTempDBBuilder::new();
 
         let url = url::Url::parse(conn_uri)
-            .expect(&format!("Could not parse connection URI `{}`", conn_uri));
+            .unwrap_or_else(|_| panic!("Could not parse connection URI `{}`", conn_uri));
 
         // TODO: error types
         assert!(

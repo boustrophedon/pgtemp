@@ -13,3 +13,10 @@ dependencies = [
 	"pytest",
 	"black"
 ]
+
+[tool.black]
+extend-exclude = '''
+(
+alembic
+)
+'''

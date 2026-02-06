@@ -95,12 +95,13 @@ fn test_slow_postgres_startup() {
     for cmd in ["postgres", "createdb", "psql", "initdb"] {
         let sleep_cmd = if cmd == "postgres" { "sleep 0.5" } else { "" };
         let exec_cmd = format!("exec {cmd} \"$@\"");
-        let wrapper_binary = vec!["#!/bin/bash", sleep_cmd, exec_cmd.as_str()].join("\n");
+        let wrapper_binary = ["#!/bin/bash", sleep_cmd, exec_cmd.as_str()].join("\n");
 
         let wrapper_postgres_bin = dir_path.join(cmd);
         let mut file = std::fs::OpenOptions::new()
             .write(true)
             .create(true)
+            .truncate(true)
             .mode(0o755)
             .open(&wrapper_postgres_bin)
             .expect("Failed to create executable wrapper script");

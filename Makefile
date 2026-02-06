@@ -26,6 +26,7 @@ lint:
 		-A clippy::doc-markdown \
 		-A clippy::missing-panics-doc \
 		-A clippy::new-without-default \
+		-A clippy::needless-continue \
 		-A clippy::expect-fun-call
 
 # Generate docs

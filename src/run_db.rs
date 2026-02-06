@@ -76,7 +76,7 @@ pub fn init_db(builder: &mut PgTempDBBuilder) -> TempDir {
     for (key, val) in &builder.initdb_args {
         // Don't add -- prefix if the key already starts with - or --
         let formatted_key = if key.starts_with('-') {
-            key.to_string()
+            key.clone()
         } else {
             format!("--{}", key)
         };
@@ -117,7 +117,7 @@ pub fn run_db(temp_dir: &TempDir, mut builder: PgTempDBBuilder) -> Child {
         pgcmd.args(["-u", "postgres"]).arg(postgres_path);
     } else {
         pgcmd = Command::new(postgres_path);
-    };
+    }
 
     pgcmd
         .args(["-c", &format!("unix_socket_directories={}", data_dir_str)])
