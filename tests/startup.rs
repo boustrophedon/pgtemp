@@ -92,7 +92,7 @@ fn test_slow_postgres_startup() {
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
     let dir_path = temp_dir.path().to_owned();
 
-    for cmd in ["postgres", "createdb", "psql", "initdb"] {
+    for cmd in ["postgres", "createdb", "psql", "initdb", "pg_isready"] {
         let sleep_cmd = if cmd == "postgres" { "sleep 0.5" } else { "" };
         let exec_cmd = format!("exec {cmd} \"$@\"");
         let wrapper_binary = ["#!/bin/bash", sleep_cmd, exec_cmd.as_str()].join("\n");

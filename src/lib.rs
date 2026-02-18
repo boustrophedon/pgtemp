@@ -37,6 +37,8 @@ pub struct PgTempDB {
     // See shutdown implementation for why these are options
     temp_dir: Option<TempDir>,
     postgres_process: Option<Child>,
+    /// just dropping this is enough to shutdown the proxy
+    _shutdown_proxy: tokio::sync::oneshot::Sender<()>,
 }
 
 impl PgTempDB {
@@ -44,14 +46,15 @@ impl PgTempDB {
     pub fn from_builder(mut builder: PgTempDBBuilder) -> PgTempDB {
         let dbuser = builder.get_user();
         let dbpass = builder.get_password();
-        let dbport = builder.get_port_or_set_random();
+        let (tcp_listener, dbport) = make_listener(builder.port.unwrap_or(0));
+        builder.port = Some(dbport);
         let dbname = builder.get_dbname();
         let persist = builder.persist_data_dir;
         let dump_path = builder.dump_path.clone();
         let load_path = builder.load_path.clone();
 
         let temp_dir = run_db::init_db(&mut builder);
-        let postgres_process = Some(run_db::run_db(&temp_dir, builder));
+        let (postgres_process, _shutdown_proxy) = run_db::run_db(&temp_dir, tcp_listener, builder);
         let temp_dir = Some(temp_dir);
 
         let db = PgTempDB {
@@ -62,7 +65,8 @@ impl PgTempDB {
             persist,
             dump_path,
             temp_dir,
-            postgres_process,
+            postgres_process: Some(postgres_process),
+            _shutdown_proxy,
         };
 
         if let Some(path) = load_path {
@@ -458,8 +462,17 @@ impl PgTempDBBuilder {
 
     /// Unlike the other getters, this getter will try to open a new socket to find an unused port,
     /// and then set it as the current port.
+    ///
+    /// By using this function, you force pgtemp to choose a port non-atomically. This can
+    /// cause a race condition where another process might choose the same port. You can
+    /// avoid that problem by simply not calling this function, pgtemp will then atomically
+    /// reserve a port.
     pub fn get_port_or_set_random(&mut self) -> u16 {
-        let port = self.port.as_ref().copied().unwrap_or_else(get_unused_port);
+        let port = self
+            .port
+            .as_ref()
+            .copied()
+            .unwrap_or_else(|| make_listener(0).1);
 
         self.port = Some(port);
         port
@@ -471,13 +484,14 @@ impl PgTempDBBuilder {
     }
 }
 
-fn get_unused_port() -> u16 {
-    // TODO: relies on Rust's stdlib setting SO_REUSEPORT by default so that postgres can still
-    // bind to the port afterwards. Also there's a race condition/TOCTOU because there's lag
-    // between when the port is checked here and when postgres actually tries to bind to it.
-    let sock = std::net::TcpListener::bind("localhost:0")
-        .expect("failed to bind to local port when getting unused port");
-    sock.local_addr()
+/// make a socket listen on the given port, which can be 0 to pick a random one
+///
+/// Return a listener and the actual port chosen
+fn make_listener(port: u16) -> (std::net::TcpListener, u16) {
+    let l = std::net::TcpListener::bind(("127.0.0.1", port)).expect("binding port");
+    let port = l
+        .local_addr()
         .expect("failed to get local addr from socket")
-        .port()
+        .port();
+    (l, port)
 }

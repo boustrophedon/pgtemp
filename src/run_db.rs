@@ -101,7 +101,38 @@ pub fn init_db(builder: &mut PgTempDBBuilder) -> TempDir {
     temp_dir
 }
 
-pub fn run_db(temp_dir: &TempDir, mut builder: PgTempDBBuilder) -> Child {
+async fn make_proxy(listener: std::net::TcpListener, unix_path: std::path::PathBuf) {
+    listener
+        .set_nonblocking(true)
+        .expect("failed to set nonblocking");
+
+    let listener =
+        tokio::net::TcpListener::from_std(listener).expect("failed to upgrade to tokio listener");
+
+    loop {
+        if let Ok((mut client_conn, _client_addr)) = listener.accept().await {
+            client_conn
+                .set_nodelay(true)
+                .expect("failed to set nodelay on client connection");
+            let mut db_conn = tokio::net::UnixStream::connect(&unix_path)
+                .await
+                .expect("failed to connect to postgres server");
+            tokio::spawn(async move {
+                let _ = tokio::io::copy_bidirectional(&mut db_conn, &mut client_conn).await;
+            });
+        } else {
+            println!("idk when this errs");
+        }
+    }
+}
+
+/// start the postgres server. If `port_holder` is specified, drop it after
+/// we are sure that postgres is running.
+pub fn run_db(
+    temp_dir: &TempDir,
+    listener_port: std::net::TcpListener,
+    mut builder: PgTempDBBuilder,
+) -> (Child, tokio::sync::oneshot::Sender<()>) {
     let data_dir = temp_dir.path().join("pg_data_dir");
     let data_dir_str = data_dir.to_str().unwrap();
     let port = builder.get_port_or_set_random();
@@ -121,13 +152,13 @@ pub fn run_db(temp_dir: &TempDir, mut builder: PgTempDBBuilder) -> Child {
 
     pgcmd
         .args(["-c", &format!("unix_socket_directories={}", data_dir_str)])
-        .args(["-c", &format!("port={port}")])
         // https://www.postgresql.org/docs/current/non-durability.html
         // https://wiki.postgresql.org/wiki/Tuning_Your_PostgreSQL_Server
         .args(["-c", "fsync=off"])
         .args(["-c", "synchronous_commit=off"])
         .args(["-c", "full_page_writes=off"])
         .args(["-c", "autovacuum=off"])
+        .args(["-c", "listen_addresses="])
         .args(["-D", data_dir.to_str().unwrap()]);
     for (key, val) in &builder.server_configs {
         pgcmd.args(["-c", &format!("{}={}", key, val)]);
@@ -142,11 +173,36 @@ pub fn run_db(temp_dir: &TempDir, mut builder: PgTempDBBuilder) -> Child {
         .spawn()
         .expect("Failed to start postgres. Is it installed and on your path?");
 
-    std::thread::sleep(CREATEDB_RETRY_DELAY);
+    let (stop_proxy_tx, mut stop_proxy_rx) = tokio::sync::oneshot::channel();
+
+    let socket_path = data_dir.join(".s.PGSQL.5432");
+    std::thread::spawn(move || {
+        let rt = tokio::runtime::Builder::new_current_thread()
+            .enable_io()
+            .build()
+            .expect("start tokio runtime");
+        rt.block_on(async move {
+            tokio::select! {
+                _ = &mut stop_proxy_rx => { }
+                _ = make_proxy(listener_port, socket_path) => {}
+            }
+        });
+    });
+
+    let isready_path = builder
+        .bin_path
+        .as_ref()
+        .map_or("pg_isready".into(), |p| p.join("pg_isready"));
+
+    // pg_isready treats its "-h" parameter as a path if it starts with a slash,
+    // so ensure that it starts with a slash
+    let unix_path = std::path::absolute(&data_dir).expect("failed to resolve datadir path");
+    while !check_postgres_ready(&isready_path, &unix_path) {
+        std::thread::sleep(CREATEDB_RETRY_DELAY);
+    }
 
     let user = builder.get_user();
     //let password = builder.get_password();
-    let port = builder.get_port_or_set_random();
     let dbname = builder.get_dbname();
 
     if dbname != "postgres" {
@@ -195,5 +251,23 @@ pub fn run_db(temp_dir: &TempDir, mut builder: PgTempDBBuilder) -> Child {
         }
     }
 
-    postgres_server_process
+    (postgres_server_process, stop_proxy_tx)
+}
+
+/// connect to postgres via its unix domain socket; and send it an SSL request.
+///
+/// If the server is not up and running, it will reply with an error, in which case
+/// the we need to wait longer for it to start up.
+///
+/// Connect via a unix domain socket, because while we hold the "port locking TcpListener",
+/// we will preferentially connect to that one instead of the real postgres.
+fn check_postgres_ready(
+    is_ready_path: &std::path::Path,
+    unix_socket_path: &std::path::Path,
+) -> bool {
+    let mut cmd = Command::new(is_ready_path);
+    cmd.arg("-h");
+    cmd.arg(unix_socket_path);
+    let output = cmd.output().expect("child");
+    output.status.success()
 }
